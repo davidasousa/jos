@@ -122,7 +122,7 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 		//print info to terminal
         cprintf("       ");
         cprintf("%s:", info.eip_file);
-		cprintf("%d ", info.eip_line);
+		cprintf("%d: ", info.eip_line);
 		cprintf("%s", buffer);
 		cprintf("+%d", ((*eip) - info.eip_fn_addr));
 		cprintf("\n");
