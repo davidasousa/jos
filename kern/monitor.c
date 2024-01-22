@@ -83,6 +83,7 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
     uint32_t ebp_const = read_ebp(); // Current EBP As A Int
     uint32_t* ebp = &ebp_const; // EBP 
 
+    struct Eipdebuginfo info;
     uint32_t* eip = (uint32_t*)(*ebp + 4);
 
     uint32_t* p1 = (uint32_t*)(*ebp + 8);
@@ -102,7 +103,6 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
         // Printing Output
         cprintf("  &ebp %08x", *ebp);
         cprintf("  &eip %08x", *eip);
-
         cprintf("  args");
         cprintf(" %08x", *p1);
         cprintf(" %08x", *p2);
@@ -111,11 +111,23 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
         cprintf(" %08x", *p5);
         cprintf("\n");
 
+        // Exercise 12
+        debuginfo_eip(*eip, &info);
+
+        cprintf("\t");
+        cprintf("%s", info.eip_file);
+        cprintf(":%d:", info.eip_line);
+        cprintf("%s", info.eip_line);
+        cprintf("\n");
+        //
+
+
         // Dereference The EBP Address To Extract The Value
         // Cast To Pointer To Find The Address (Prev EBP)
         ebp = (uint32_t*)(*ebp);
 
         eip = (uint32_t*)(*ebp + 4);
+
         p1 = (uint32_t*)(*ebp + 8);
         p2 = (uint32_t*)(*ebp + 12);
         p3 = (uint32_t*)(*ebp + 16);
