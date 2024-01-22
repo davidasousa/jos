@@ -101,8 +101,8 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
     
     while(*ebp) { 
         // Printing Output
-        cprintf("  &ebp %08x", *ebp);
-        cprintf("  &eip %08x", *eip);
+        cprintf("  ebp %08x", *ebp);
+        cprintf("  eip %08x", *eip);
         cprintf("  args");
         cprintf(" %08x", *p1);
         cprintf(" %08x", *p2);
@@ -113,12 +113,19 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 
         // Exercise 12
         debuginfo_eip(*eip, &info);
+		
 
-        cprintf("\t");
-        cprintf("%s", info.eip_file);
-        cprintf(":%d:", info.eip_line);
-        cprintf("%s", info.eip_line);
-        cprintf("\n");
+		//Name buffer for eip_fn_name so we can terminate
+		char buffer[100] = {'\0'};
+		memcpy(buffer,info.eip_fn_name, info.eip_fn_namelen);
+
+		//print info to terminal
+        cprintf("       ");
+        cprintf("%s:", info.eip_file);
+		cprintf("%d ", info.eip_line);
+		cprintf("%s", buffer);
+		cprintf("+%d", ((*eip) - info.eip_fn_addr));
+		cprintf("\n");
         //
 
 
