@@ -25,6 +25,8 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "checkprint", "Check The cprintf Function, 5000 in octal is 11610", mon_checkprint },
+	{ "backtrace", "Testing The EBP/ESP Backtrace", mon_backtrace },
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -39,6 +41,18 @@ mon_help(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+// Added To Test Octal Printing
+int
+mon_checkprint(int argc, char **argv, struct Trapframe *tf)
+{
+    // Added By David Sousa - Testing Octal
+    unsigned int i = 0x00646c72;
+    cprintf("H%x Wo%s\n", 57616, &i);
+    cprintf("%o\n", 5000);
+    return 0;
+}
+// 
+
 int
 mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 {
@@ -52,6 +66,7 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	cprintf("  end    %08x (virt)  %08x (phys)\n", end, end - KERNBASE);
 	cprintf("Kernel executable memory footprint: %dKB\n",
 		ROUNDUP(end - entry, 1024) / 1024);
+
 	return 0;
 }
 
@@ -61,6 +76,54 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	// LAB 1: Your code here.
     // HINT 1: use read_ebp().
     // HINT 2: print the current ebp on the first line (not current_ebp[0])
+    // Added By David Sousa
+
+    // Defining Registers And Their Pointers
+    
+    uint32_t ebp_const = read_ebp(); // Current EBP As A Int
+    uint32_t* ebp = &ebp_const; // EBP 
+
+    uint32_t* eip = (uint32_t*)(*ebp + 4);
+
+    uint32_t* p1 = (uint32_t*)(*ebp + 8);
+    uint32_t* p2 = (uint32_t*)(*ebp + 12);
+    uint32_t* p3 = (uint32_t*)(*ebp + 16);
+    uint32_t* p4 = (uint32_t*)(*ebp + 20);
+    uint32_t* p5 = (uint32_t*)(*ebp + 24);
+
+    // ------- //
+
+    cprintf("Stack backtrace:\n"); 
+    
+    // Ebp Terminates At 0 ~ No Stack
+    // Ebp - Actual Basepointer Value -> Cast To Pointer To Find Address Of Previous EBP
+    
+    while(*ebp) { 
+        // Printing Output
+        cprintf("  &ebp %08x", *ebp);
+        cprintf("  &eip %08x", *eip);
+
+        cprintf("  args");
+        cprintf(" %08x", *p1);
+        cprintf(" %08x", *p2);
+        cprintf(" %08x", *p3);
+        cprintf(" %08x", *p4);
+        cprintf(" %08x", *p5);
+        cprintf("\n");
+
+        // Dereference The EBP Address To Extract The Value
+        // Cast To Pointer To Find The Address (Prev EBP)
+        ebp = (uint32_t*)(*ebp);
+
+        eip = (uint32_t*)(*ebp + 4);
+        p1 = (uint32_t*)(*ebp + 8);
+        p2 = (uint32_t*)(*ebp + 12);
+        p3 = (uint32_t*)(*ebp + 16);
+        p4 = (uint32_t*)(*ebp + 20);
+        p5 = (uint32_t*)(*ebp + 24);
+    }
+    
+    //
 	return 0;
 }
 
