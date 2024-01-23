@@ -13,6 +13,16 @@
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
+// Colors For Lab 1 Extra Credit
+#define RED_ANSI "\x1b[31m"
+#define GREEN_ANSI "\x1b[32m"
+#define YELLOW_ANSI "\x1b[33m"
+#define BLUE_ANSI "\x1b[34m"
+#define MAGENTA_ANSI "\x1b[35m"
+#define CYAN_ANSI "\x1b[36m"
+#define WHITE_ANSI "\x1b[37m"
+#define ANSI_RESET "\x1b[0m"
+
 
 struct Command {
 	const char *name;
@@ -27,6 +37,7 @@ static struct Command commands[] = {
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{ "checkprint", "Check The cprintf Function, 5000 in octal is 11610", mon_checkprint },
 	{ "backtrace", "Testing The EBP/ESP Backtrace", mon_backtrace },
+	{ "show", "Printing Rainbow Lenny Face", mon_showcolors },
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -68,6 +79,26 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 		ROUNDUP(end - entry, 1024) / 1024);
 
 	return 0;
+}
+
+int
+mon_showcolors(int argc, char **argv, struct Trapframe *tf)
+{
+    cprintf("%s        _.-'~~`~~'-._%s\n", BLUE_ANSI, ANSI_RESET);
+    cprintf("%s     .'`  B   E   R  `%s\n", MAGENTA_ANSI, ANSI_RESET);
+    cprintf("%s    / I               T \\%s\n", YELLOW_ANSI, ANSI_RESET);
+    cprintf("%s  /`       .-'~\"-.       `\\%s\n", GREEN_ANSI, ANSI_RESET);
+    cprintf("%s ; L      / `-    \\      Y ;%s\n", RED_ANSI, ANSI_RESET);
+    cprintf("%s;        />  `.  -.|        ;%s\n", BLUE_ANSI, ANSI_RESET);
+    cprintf("%s|       /_     '-.__)       |%s\n", MAGENTA_ANSI, ANSI_RESET);
+    cprintf("%s|        |-  _.' \\ |        |%s\n", YELLOW_ANSI, ANSI_RESET);
+    cprintf("%s;        `~~;     \\\\        ;%s\n", GREEN_ANSI, ANSI_RESET);
+    cprintf("%s ;  INGODWE /      \\\\)P    ;%s\n", RED_ANSI, ANSI_RESET);
+    cprintf("%s  \\  TRUST '.___.-'`\"     /%s\n", BLUE_ANSI, ANSI_RESET);
+    cprintf("%s   `\\                   /`%s\n", MAGENTA_ANSI, ANSI_RESET);
+    cprintf("%s     '._   1 9 9 7   _.'%s\n", YELLOW_ANSI, ANSI_RESET);
+    cprintf("%s        `'-..,,,..-'`%s\n", GREEN_ANSI, ANSI_RESET);
+    return 0;
 }
 
 int
