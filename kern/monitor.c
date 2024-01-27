@@ -37,7 +37,7 @@ static struct Command commands[] = {
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{ "checkprint", "Check The cprintf Function, 5000 in octal is 11610", mon_checkprint },
 	{ "backtrace", "Testing The EBP/ESP Backtrace", mon_backtrace },
-	{ "show", "Printing Rainbow Lenny Face", mon_showcolors },
+	{ "show", "Printing Rainbow Quater Ascii Art", mon_showcolors },
 };
 
 /***** Implementations of basic kernel monitor commands *****/

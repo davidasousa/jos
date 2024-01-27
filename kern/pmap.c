@@ -137,7 +137,7 @@ mem_init(void)
 	i386_detect_memory();
 
 	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
+	// panic("mem_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -161,7 +161,16 @@ mem_init(void)
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
 
-
+    // Allocating Space For The Pages & Storing In Pages 
+    char* pages_mem = boot_alloc(npages * sizeof(struct PageInfo));
+    pages = (struct PageInfo*) pages_mem;
+    // Initializing Each Field In Each Page To Be 0
+    for(int idx = 0; idx < npages; idx++) {
+        memset(&pages[idx].pp_ref, 0, sizeof(int));
+        memset(&pages[idx].pp_link, 0, sizeof(int));
+    }
+    // End Lab 2 Part 1 Code
+    
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
 	// up the list of free physical pages. Once we've done so, all further
