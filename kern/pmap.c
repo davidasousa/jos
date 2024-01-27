@@ -103,7 +103,19 @@ boot_alloc(uint32_t n)
 	//
 	// LAB 2: Your code here.
 
-	return NULL;
+    // Making Sure That N Is A Multiple Of PGSIZE
+    result = nextfree;
+    if(n % PGSIZE != 0) { // Rounding To A Mod 0 With PGSIZE
+       n = ROUNDUP(n, PGSIZE);
+    }
+
+    // Updating Next Free
+    nextfree += n;
+
+    // Returning The Original Nextfree Address
+	return result;
+
+    // End Lab 2 Code
 }
 
 // Set up a two-level page table:
