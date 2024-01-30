@@ -101,7 +101,7 @@ boot_alloc(uint32_t n)
 	// nextfree.  Make sure nextfree is kept aligned
 	// to a multiple of PGSIZE.
 	//
-	// LAB 2: Your code here.
+	// LAB 2: Your code here: ------
 
     // Making Sure That N Is A Multiple Of PGSIZE
     result = nextfree;
@@ -109,13 +109,16 @@ boot_alloc(uint32_t n)
        n = ROUNDUP(n, PGSIZE);
     }
 
-    // Updating Next Free
+    // Updating Next Free To Reflect The Next Free Piece Of Memory
     nextfree += n;
 
-    // Returning The Original Nextfree Address
+    // Assertion Testing Correct Position And Page Alignment
+    assert(nextfree == result + n && (uint32_t)(nextfree) % PGSIZE == 0);
+
+    // Returning The Original Nextfree Address At The Beginning Of The Allocation
 	return result;
 
-    // End Lab 2 Code
+    // End Lab 2 Code ------
 }
 
 // Set up a two-level page table:
@@ -161,15 +164,18 @@ mem_init(void)
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
 
-    // Allocating Space For The Pages & Storing In Pages 
-    char* pages_mem = boot_alloc(npages * sizeof(struct PageInfo));
+    // Allocating Space For The Page's Info Not The Actual Pages
+    char* pages_mem = boot_alloc(npages * sizeof(struct PageInfo)); 
     pages = (struct PageInfo*) pages_mem;
+
     // Initializing Each Field In Each Page To Be 0
     for(int idx = 0; idx < npages; idx++) {
         memset(&pages[idx].pp_ref, 0, sizeof(int));
         memset(&pages[idx].pp_link, 0, sizeof(int));
+
+        assert(pages[idx].pp_ref == 0 && pages[idx].pp_link == 0);
     }
-    // End Lab 2 Part 1 Code
+    // End Lab 2 Exercise 1 Code
     
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -272,12 +278,38 @@ page_init(void)
 	// Change the code to reflect this.
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
+
+    /* Example Code Setting All Pages To Be Free
 	size_t i;
 	for (i = 0; i < npages; i++) {
-		pages[i].pp_ref = 0;
+		pages[i].pp_ref = 0; // Setting References To 0 -> Free
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
 	}
+    */
+    
+    // Setting Physical Page 0 As In Use
+    pages[0].pp_ref = 1; // Setting References To 1 -> In Use
+    pages[0].pp_link = NULL; // Null Due To Page Being In Use -> Link Is For Free Pages
+
+    // Setting The Rest Of Base Memory To Free: [1, npages_basemem]
+    for(size_t idx = 1; idx < npages_basemem; idx++) {
+		pages[idx].pp_ref = 0; // Setting References To 0 -> Free
+		pages[idx].pp_link = page_free_list; // Setting The Link To The Previous Pointer For The Head
+		page_free_list = &pages[idx]; // New Pointer Is The Current Free Page
+    } 
+
+    // Setting The Beggining Of Kernel Code -> End Of Pages To In Use
+    
+    cprintf("\nFirst Extended Address: %ld\n", EXTPHYSMEM / PGSIZE); 
+    cprintf("Total Pages: %ld\n", npages);
+    cprintf("Basemem Pages: %ld\n", npages_basemem);
+
+
+    assert(1 == 0);
+
+    // EXTPHYSMEM Begins At 1MB -> 0x100000
+
 }
 
 //
