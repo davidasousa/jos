@@ -102,14 +102,15 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here: ------
+
     result = nextfree;
     if(n % PGSIZE != 0) {
        n = ROUNDUP(n, PGSIZE);
     }
     nextfree += n;
+
     // Assertion Testing Correct Position And Page Alignment
     assert(nextfree == result + n && (uint32_t)(nextfree) % PGSIZE == 0);
-
 	return result;
 }
 
@@ -176,6 +177,7 @@ mem_init(void)
 	// particular, we can now map memory using boot_map_region
 	// or page_insert
 	page_init();
+    assert(0);
 
 	check_page_free_list(1);
 	check_page_alloc();
@@ -270,33 +272,30 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
     
+    // Base Memory -> The Entire 4GB 
+    
     *page_free_list = (struct PageInfo) {.pp_ref = 0, .pp_link = 0};
 
-    // Setting Physical Page 0 As In Use
-    pages[0].pp_ref = 1; // Setting References To 1 -> In Use
-    pages[0].pp_link = NULL; // Null Due To Page Being In Use -> Link Is For Free Pages
+    uint32_t nextfree_addr = (uint32_t) boot_alloc(0);
+    uint32_t nextfree_idx = nextfree_addr / PGSIZE;
 
-    // Setting The Rest Of Base Memory To Free: [1, npages_basemem]
-    for(size_t idx = 1; idx < npages_basemem; idx++) {
-		pages[idx].pp_ref = 0; // Setting References To 0 -> Free
-		pages[idx].pp_link = page_free_list; // Setting The Link To The Previous Free Page
-		page_free_list = &pages[idx]; // New Pointer Is The Current Free Page
-    } 
+    cprintf("\n%lu %lu\n", nextfree_addr, nextfree_idx);
 
-    physaddr_t pages_end = ((uint32_t) boot_alloc(0));
-
-    // Setting From IOPHYSMEM To The End Of Pages In Use
-    for(size_t idx = npages_basemem; idx < (pages_end / PGSIZE); idx++) {
+    /*
+    for(size_t idx = 0; idx < nextfree_idx; idx++) {
         pages[idx].pp_ref = 1; // Setting References To 1 -> In Use
         pages[idx].pp_link = NULL; // Null Due To Page Being In Use -> Link Is For Free Pages
     }
 
-    // Setting The Rest Of Memory To Be Free
-    for(size_t idx = (pages_end / PGSIZE); idx < npages; idx++) {
+    for(size_t idx = nextfree_idx; idx < npages; idx++) {
 		pages[idx].pp_ref = 0; 
 		pages[idx].pp_link = page_free_list;
 		page_free_list = &pages[idx]; 
     }
+    */
+
+    // delete later
+    assert(0);
 }
 
 //
