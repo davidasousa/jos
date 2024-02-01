@@ -160,7 +160,6 @@ mem_init(void)
     pages = boot_alloc(npages * sizeof(struct PageInfo)); 
     // Allocating Space For The Free Page Ptr
     page_free_list = boot_alloc(sizeof(struct PageInfo));
-    *page_free_list = (struct PageInfo) {.pp_ref = 0, .pp_link = 0};
 
     // Initializing Each Field In Each Page To Be 0
     for(int idx = 0; idx < npages; idx++) {
@@ -244,7 +243,6 @@ mem_init(void)
 // The 'pages' array has one 'struct PageInfo' entry per physical page.
 // Pages are reference counted, and free pages are kept on a linked list.
 // --------------------------------------------------------------
-
 //
 // Initialize page structure and memory free list.
 // After this is done, NEVER use boot_alloc again.  ONLY use the page
@@ -271,34 +269,33 @@ page_init(void)
 	// Change the code to reflect this.
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
+    
+    *page_free_list = (struct PageInfo) {.pp_ref = 0, .pp_link = 0};
 
     // Setting Physical Page 0 As In Use
     pages[0].pp_ref = 1; // Setting References To 1 -> In Use
     pages[0].pp_link = NULL; // Null Due To Page Being In Use -> Link Is For Free Pages
 
-    size_t idx = 1;
     // Setting The Rest Of Base Memory To Free: [1, npages_basemem]
-    for(;idx < npages_basemem; idx++) {
+    for(size_t idx = 1; idx < npages_basemem; idx++) {
 		pages[idx].pp_ref = 0; // Setting References To 0 -> Free
 		pages[idx].pp_link = page_free_list; // Setting The Link To The Previous Free Page
 		page_free_list = &pages[idx]; // New Pointer Is The Current Free Page
     } 
 
-    assert(npages_basemem == (IOPHYSMEM / PGSIZE));
-
     physaddr_t pages_end = ((uint32_t) boot_alloc(0));
 
     // Setting From IOPHYSMEM To The End Of Pages In Use
-    for(;idx < (pages_end / PGSIZE); idx++) {
+    for(size_t idx = npages_basemem; idx < (pages_end / PGSIZE); idx++) {
         pages[idx].pp_ref = 1; // Setting References To 1 -> In Use
         pages[idx].pp_link = NULL; // Null Due To Page Being In Use -> Link Is For Free Pages
     }
 
     // Setting The Rest Of Memory To Be Free
-    for(; idx < npages; idx++) {
-		pages[idx].pp_ref = 0; // Setting References To 0 -> Free
-		pages[idx].pp_link = page_free_list; // Setting The Link To The Previous Free Page
-		page_free_list = &pages[idx]; // New Pointer Is The Current Free Page
+    for(size_t idx = (pages_end / PGSIZE); idx < npages; idx++) {
+		pages[idx].pp_ref = 0; 
+		pages[idx].pp_link = page_free_list;
+		page_free_list = &pages[idx]; 
     }
 }
 
@@ -318,19 +315,20 @@ struct PageInfo *
 page_alloc(int alloc_flags)
 {
 	// Fill this function in
-    
-    // Allocating Space For The Page
-    physaddr_t nextfree_phys = (physaddr_t) (boot_alloc(PGSIZE));
 
-    // Converting To VA
-    void* nextfree_va = page2kva((void*) nextfree_phys); 
+    // Taking A Free Page From The List
+    struct PageInfo* page = page_free_list;
+    page_free_list = page_free_list -> pp_link;
 
-    struct PageInfo* page = ((struct PageInfo*) nextfree_va); // Casting The VA Into A Page
     if(alloc_flags & ALLOC_ZERO) {
        memset(page, '\0', sizeof(struct PageInfo)); 
     }
     page -> pp_link = NULL;
+
+    // Converting To VA
+    page = (struct PageInfo*) page2kva((void*) page); 
          
+    // Returning The VA
 	return page;
 }
 
