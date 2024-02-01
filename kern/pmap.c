@@ -102,23 +102,15 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here: ------
-
-    // Making Sure That N Is A Multiple Of PGSIZE
     result = nextfree;
-    if(n % PGSIZE != 0) { // Rounding To A Mod 0 With PGSIZE
+    if(n % PGSIZE != 0) {
        n = ROUNDUP(n, PGSIZE);
     }
-
-    // Updating Next Free To Reflect The Next Free Piece Of Memory
     nextfree += n;
-
     // Assertion Testing Correct Position And Page Alignment
     assert(nextfree == result + n && (uint32_t)(nextfree) % PGSIZE == 0);
 
-    // Returning The Original Nextfree Address At The Beginning Of The Allocation
 	return result;
-
-    // End Lab 2 Code ------
 }
 
 // Set up a two-level page table:
@@ -164,15 +156,16 @@ mem_init(void)
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
 
-    // Allocating Space For The Page's Info Not The Actual Pages
-    char* pages_mem = boot_alloc(npages * sizeof(struct PageInfo)); 
-    pages = (struct PageInfo*) pages_mem;
+    // Allocating Space For The Page Info Table 
+    pages = boot_alloc(npages * sizeof(struct PageInfo)); 
+    // Allocating Space For The Free Page Ptr
+    page_free_list = boot_alloc(sizeof(struct PageInfo));
+    *page_free_list = (struct PageInfo) {.pp_ref = 0, .pp_link = 0};
 
     // Initializing Each Field In Each Page To Be 0
     for(int idx = 0; idx < npages; idx++) {
         memset(&pages[idx].pp_ref, 0, sizeof(int));
         memset(&pages[idx].pp_link, 0, sizeof(int));
-
         assert(pages[idx].pp_ref == 0 && pages[idx].pp_link == 0);
     }
     // End Lab 2 Exercise 1 Code
@@ -279,37 +272,34 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
 
-    /* Example Code Setting All Pages To Be Free
-	size_t i;
-	for (i = 0; i < npages; i++) {
-		pages[i].pp_ref = 0; // Setting References To 0 -> Free
-		pages[i].pp_link = page_free_list;
-		page_free_list = &pages[i];
-	}
-    */
-    
     // Setting Physical Page 0 As In Use
     pages[0].pp_ref = 1; // Setting References To 1 -> In Use
     pages[0].pp_link = NULL; // Null Due To Page Being In Use -> Link Is For Free Pages
 
+    size_t idx = 1;
     // Setting The Rest Of Base Memory To Free: [1, npages_basemem]
-    for(size_t idx = 1; idx < npages_basemem; idx++) {
+    for(;idx < npages_basemem; idx++) {
 		pages[idx].pp_ref = 0; // Setting References To 0 -> Free
-		pages[idx].pp_link = page_free_list; // Setting The Link To The Previous Pointer For The Head
+		pages[idx].pp_link = page_free_list; // Setting The Link To The Previous Free Page
 		page_free_list = &pages[idx]; // New Pointer Is The Current Free Page
     } 
 
-    // Setting The Beggining Of Kernel Code -> End Of Pages To In Use
-    
-    cprintf("\nFirst Extended Address: %ld\n", EXTPHYSMEM / PGSIZE); 
-    cprintf("Total Pages: %ld\n", npages);
-    cprintf("Basemem Pages: %ld\n", npages_basemem);
+    assert(npages_basemem == (IOPHYSMEM / PGSIZE));
 
+    physaddr_t pages_end = ((uint32_t) boot_alloc(0));
 
-    assert(1 == 0);
+    // Setting From IOPHYSMEM To The End Of Pages In Use
+    for(;idx < (pages_end / PGSIZE); idx++) {
+        pages[idx].pp_ref = 1; // Setting References To 1 -> In Use
+        pages[idx].pp_link = NULL; // Null Due To Page Being In Use -> Link Is For Free Pages
+    }
 
-    // EXTPHYSMEM Begins At 1MB -> 0x100000
-
+    // Setting The Rest Of Memory To Be Free
+    for(; idx < npages; idx++) {
+		pages[idx].pp_ref = 0; // Setting References To 0 -> Free
+		pages[idx].pp_link = page_free_list; // Setting The Link To The Previous Free Page
+		page_free_list = &pages[idx]; // New Pointer Is The Current Free Page
+    }
 }
 
 //
@@ -328,7 +318,20 @@ struct PageInfo *
 page_alloc(int alloc_flags)
 {
 	// Fill this function in
-	return 0;
+    
+    // Allocating Space For The Page
+    physaddr_t nextfree_phys = (physaddr_t) (boot_alloc(PGSIZE));
+
+    // Converting To VA
+    void* nextfree_va = page2kva((void*) nextfree_phys); 
+
+    struct PageInfo* page = ((struct PageInfo*) nextfree_va); // Casting The VA Into A Page
+    if(alloc_flags & ALLOC_ZERO) {
+       memset(page, '\0', sizeof(struct PageInfo)); 
+    }
+    page -> pp_link = NULL;
+         
+	return page;
 }
 
 //
@@ -341,6 +344,11 @@ page_free(struct PageInfo *pp)
 	// Fill this function in
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
+    if(pp -> pp_ref != 0 || pp -> pp_link != NULL)
+       panic("Page Free Error: Reference Count > 0 Or Link Not Null"); 
+
+    pp -> pp_link = page_free_list;
+    page_free_list = pp; 
 }
 
 //
