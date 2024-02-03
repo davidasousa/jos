@@ -181,7 +181,6 @@ mem_init(void)
 
 	check_page_free_list(1);
 	check_page_alloc();
-    assert(0);
 	check_page();
 
 	//////////////////////////////////////////////////////////////////////
