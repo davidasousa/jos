@@ -180,8 +180,8 @@ mem_init(void)
 	page_init();
 
 	check_page_free_list(1);
-    assert(0);
 	check_page_alloc();
+    assert(0);
 	check_page();
 
 	//////////////////////////////////////////////////////////////////////
@@ -276,8 +276,7 @@ page_init(void)
     // Base Memory -> The Entire 4GB 
 
     // Note -> calculate offset
-    uint32_t offset = 4021288960;
-    uint32_t nextfree_idx = ((uint32_t) boot_alloc(0) - offset) / PGSIZE;
+    uint32_t nextfree_idx = PADDR((void*) boot_alloc(0)) / PGSIZE;
 
     pages[0].pp_ref = 1; // Setting References To 1 -> In Use
     pages[0].pp_link = NULL; // Null Due To Page Being In Use -> Link Is For Free Pages
@@ -320,14 +319,10 @@ page_alloc(int alloc_flags)
     page_free_list = page_free_list -> pp_link;
 
     if(alloc_flags & ALLOC_ZERO) {
-       memset(page, '\0', sizeof(struct PageInfo)); 
+       memset(page2kva((void*) page), '\0', sizeof(struct PageInfo)); 
     }
     page -> pp_link = NULL;
 
-    // Converting To VA
-    page = (struct PageInfo*) page2kva((void*) page); 
-         
-    // Returning The VA
 	return page;
 }
 
