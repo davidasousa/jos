@@ -277,21 +277,19 @@ page_init(void)
 
     // Note -> calculate offset
     uint32_t nextfree_idx = PADDR((void*) boot_alloc(0)) / PGSIZE;
-
     pages[0].pp_ref = 1; // Setting References To 1 -> In Use
     pages[0].pp_link = NULL; // Null Due To Page Being In Use -> Link Is For Free Pages
-
     for(size_t idx = (IOPHYSMEM / PGSIZE); idx < nextfree_idx ; idx++) {
         pages[idx].pp_ref = 1; // Setting References To 1 -> In Use
         pages[idx].pp_link = NULL; // Null Due To Page Being In Use -> Link Is For Free Pages
     }
-
     for(size_t idx = 0; idx < npages; idx++) {
         if(pages[idx].pp_ref == 0) {
             pages[idx].pp_link = page_free_list;
             page_free_list = &pages[idx]; 
         }
     }
+
 }
 
 //
@@ -318,8 +316,8 @@ page_alloc(int alloc_flags)
     struct PageInfo* page = page_free_list;
     page_free_list = page_free_list -> pp_link;
 
-    if(alloc_flags & ALLOC_ZERO) {
-       memset(page2kva((void*) page), '\0', sizeof(struct PageInfo)); 
+    if(alloc_flags & ALLOC_ZERO) { 
+        memset(page2kva((void*) page), '\0', PGSIZE); 
     }
     page -> pp_link = NULL;
 
