@@ -377,7 +377,27 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	return NULL;
+    
+    uint32_t dir_idx = PDX(va); 
+    uint32_t tab_idx = PTX(va); 
+    uint32_t offset = PGOFF(va); 
+
+    // Pages Is The Directory
+    struct PageInfo* page_table = &pages[dir_idx];
+
+    // Page Table Does Not Exist Yet
+    if(page_table[tab_idx].pp_ref == 0) {
+        // Create Bit Off -> Return NULL
+        if(create == 0)
+            return NULL;
+
+        // Allocating Page & Setting Flags (Not Sure About The Flags)
+        struct PageInfo* page = page_alloc(ALLOC_ZERO & PTE_U & PTE_W);
+        page -> pp_ref++;
+        return (pte_t*) page;
+    }
+    // Page Table Does Exist
+    return (pte_t*) &page_table[tab_idx];
 }
 
 //
@@ -395,6 +415,16 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
+    uint32_t tab_idx = PTX(va); 
+    uint32_t offset = PGOFF(va); 
+
+    for(size_t tab_idx = PTX(va); tab_idx < PTX(va) + (size / PGSIZE); tab_idx++) {
+        pgdir[tab_idx] = *pgdir_walk(pgdir, (void*) va, 1); 
+        // Setting Permission Bits
+        pgdir[tab_idx] &= 0xfff;
+        pgdir[tab_idx] |= (perm | PTE_P);
+    }
+
 }
 
 //
@@ -426,6 +456,10 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
+    uint32_t tab_idx = PTX(va); 
+    uint32_t offset = PGOFF(va); 
+
+
 	return 0;
 }
 
