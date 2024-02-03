@@ -104,6 +104,9 @@ boot_alloc(uint32_t n)
 	// LAB 2: Your code here: ------
 
     result = nextfree;
+
+    if(!n) { return result; }
+
     if(n % PGSIZE != 0) {
        n = ROUNDUP(n, PGSIZE);
     }
@@ -156,12 +159,10 @@ mem_init(void)
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
+    
 
     // Allocating Space For The Page Info Table 
     pages = boot_alloc(npages * sizeof(struct PageInfo)); 
-    // Allocating Space For The Free Page Ptr
-    page_free_list = boot_alloc(sizeof(struct PageInfo));
-
     // Initializing Each Field In Each Page To Be 0
     for(int idx = 0; idx < npages; idx++) {
         memset(&pages[idx].pp_ref, 0, sizeof(int));
@@ -177,9 +178,9 @@ mem_init(void)
 	// particular, we can now map memory using boot_map_region
 	// or page_insert
 	page_init();
-    assert(0);
 
 	check_page_free_list(1);
+    assert(0);
 	check_page_alloc();
 	check_page();
 
@@ -273,29 +274,25 @@ page_init(void)
 	// free pages!
     
     // Base Memory -> The Entire 4GB 
-    
-    *page_free_list = (struct PageInfo) {.pp_ref = 0, .pp_link = 0};
 
-    uint32_t nextfree_addr = (uint32_t) boot_alloc(0);
-    uint32_t nextfree_idx = nextfree_addr / PGSIZE;
+    // Note -> calculate offset
+    uint32_t offset = 4021288960;
+    uint32_t nextfree_idx = ((uint32_t) boot_alloc(0) - offset) / PGSIZE;
 
-    cprintf("\n%lu %lu\n", nextfree_addr, nextfree_idx);
+    pages[0].pp_ref = 1; // Setting References To 1 -> In Use
+    pages[0].pp_link = NULL; // Null Due To Page Being In Use -> Link Is For Free Pages
 
-    /*
-    for(size_t idx = 0; idx < nextfree_idx; idx++) {
+    for(size_t idx = (IOPHYSMEM / PGSIZE); idx < nextfree_idx ; idx++) {
         pages[idx].pp_ref = 1; // Setting References To 1 -> In Use
         pages[idx].pp_link = NULL; // Null Due To Page Being In Use -> Link Is For Free Pages
     }
 
-    for(size_t idx = nextfree_idx; idx < npages; idx++) {
-		pages[idx].pp_ref = 0; 
-		pages[idx].pp_link = page_free_list;
-		page_free_list = &pages[idx]; 
+    for(size_t idx = 0; idx < npages; idx++) {
+        if(pages[idx].pp_ref == 0) {
+            pages[idx].pp_link = page_free_list;
+            page_free_list = &pages[idx]; 
+        }
     }
-    */
-
-    // delete later
-    assert(0);
 }
 
 //
@@ -316,6 +313,9 @@ page_alloc(int alloc_flags)
 	// Fill this function in
 
     // Taking A Free Page From The List
+    if(page_free_list == NULL)
+        return NULL;
+
     struct PageInfo* page = page_free_list;
     page_free_list = page_free_list -> pp_link;
 
@@ -345,7 +345,7 @@ page_free(struct PageInfo *pp)
        panic("Page Free Error: Reference Count > 0 Or Link Not Null"); 
 
     pp -> pp_link = page_free_list;
-    page_free_list = pp; 
+    page_free_list = pp;
 }
 
 //
