@@ -289,7 +289,6 @@ page_init(void)
             page_free_list = &pages[idx]; 
         }
     }
-
 }
 
 //
@@ -374,15 +373,18 @@ page_decref(struct PageInfo* pp)
 // Hint 3: look at inc/mmu.h for useful macros that manipulate page
 // table and page directory entries.
 //
-pte_t *
+pte_t*
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in     
-    pde_t* dir = &pgdir[PDX(va)]; // Directory 
+    pde_t* dir = &pgdir[PDX(va)]; // PDE_T For The Directory
     *dir |= PTE_P; // Setting The Present Bit In The Directory
 
-    physaddr_t pte_pa = PTE_ADDR(*dir) + PTX(va); // Address Of The PTE Table From The Dir 
-    pte_t* table = (pte_t*)(pte_pa); // Casting Address To The PTE
+    physaddr_t pte_pa = PTE_ADDR(*dir) + PTX(va); // PTE_T For The Directory
+
+    pte_t* table = (pte_t*)pte_pa; // Casting Address To The PTE
+
+    // First Assertion Notes -> Address is 0, as the flags are set when they should not be
 
     // If The Table Is Not Present
     if((*table & PTE_P) == 0) {
@@ -399,7 +401,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
         physaddr_t newPPaddr = page2pa(newPP);  
         *table |= newPPaddr;
     } 
-    *table |= PTE_P; // Setting Present Bit
+    //*table |= PTE_P; // Setting Present Bit
     return KADDR(pte_pa);
 }
 
@@ -485,10 +487,7 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
     pte_t* current_pte = pgdir_walk(pgdir, va, 0); // Looking Up The Corresponding PTE
-    cprintf("FFFF\n");
     if(current_pte == NULL)
-        return NULL;
-    if((*current_pte & PTE_P) == 0) 
         return NULL;
     
     physaddr_t page_pa = PTE_ADDR(*current_pte); // Getting The PA From The PTE
@@ -525,7 +524,6 @@ page_remove(pde_t *pgdir, void *va)
 
     // Invalidating The Memory Address
     tlb_invalidate(pgdir, va);
-
 }
 
 //
@@ -786,7 +784,6 @@ check_page(void)
 
 	// there is no page allocated at address 0
 	assert(page_lookup(kern_pgdir, (void *) 0x0, &ptep) == NULL);
-
     assert(0);
 
 	// there is no free memory, so we can't allocate a page table
