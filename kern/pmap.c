@@ -377,18 +377,13 @@ page_decref(struct PageInfo* pp)
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
-	// Fill this function in    
+	// Fill this function in     
+    pde_t* dir = &pgdir[PDX(va)]; // Directory 
+    *dir |= PTE_P; // Setting The Present Bit In The Directory
 
-    uint32_t dir_idx = PDX(va); // Directory Index
-    uint32_t tabl_idx = PTX(va); // Page Table Index
+    physaddr_t pte_pa = PTE_ADDR(*dir) + PTX(va); // Address Of The PTE Table From The Dir 
+    pte_t* table = (pte_t*)(pte_pa); // Casting Address To The PTE
 
-    pde_t* dir = &pgdir[dir_idx]; // Corresponding Directory
-    *dir |= PTE_P; // Setting The Present Bit
-
-    pte_t* pp_pte = (pte_t*) PTE_ADDR(*dir); // Address Of The PTE Table For The Dir
-                                             
-    pte_t* table = &pp_pte[tabl_idx]; // Corresponding Table
-    
     // If The Table Is Not Present
     if((*table & PTE_P) == 0) {
         if(create == 0) // Create Flag - Off
@@ -398,18 +393,14 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
         struct PageInfo* newPP = page_alloc(ALLOC_ZERO | PTE_W | PTE_U | PTE_P); 
         if(newPP == NULL) // Alloc Failed
             return NULL;
-
         newPP -> pp_ref++;
 
-        // Finding The PA
+        // Finding The PA & Placing In The PTE
         physaddr_t newPPaddr = page2pa(newPP);  
-        // Placing This Address In The PTE 
         *table |= newPPaddr;
     } 
-    // Setting Permissions
-    *table |= PTE_P;
-
-    return table;
+    *table |= PTE_P; // Setting Present Bit
+    return KADDR(pte_pa);
 }
 
 //
@@ -465,7 +456,16 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
+    pte_t* pte = pgdir_walk(pgdir, va, 0); // Current PTE 
+    if(*pte & PTE_P) {
+        page_remove(pgdir, va);
+        pte_t* pte = pgdir_walk(pgdir, va, 1);
+    }
+    pp -> pp_ref++;
 
+    physaddr_t pp_pa = page2pa(pp);
+    *pte &= ~0xFFFFF000;
+    *pte |= pp_pa;
 
     return 0;
 }
@@ -485,6 +485,7 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
     pte_t* current_pte = pgdir_walk(pgdir, va, 0); // Looking Up The Corresponding PTE
+    cprintf("FFFF\n");
     if(current_pte == NULL)
         return NULL;
     if((*current_pte & PTE_P) == 0) 
@@ -493,7 +494,7 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
     physaddr_t page_pa = PTE_ADDR(*current_pte); // Getting The PA From The PTE
 
     struct PageInfo* current_page = pa2page(page_pa); 
-
+    
 	return current_page;
 }
 
@@ -517,12 +518,13 @@ page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
     struct PageInfo* curr_page = page_lookup(pgdir, va, NULL); // Getting The Current Page
-    curr_page -> pp_ref -= 1;
-    if(curr_page -> pp_ref == 0)
-        page_free(curr_page);
+    page_decref(curr_page);
 
     pte_t* table = pgdir_walk(pgdir, va, 0); // Finding The Corresponding Pte
-    // third bullet point
+    *table &= ~0xFFFFF000; // Setting Address To 0
+
+    // Invalidating The Memory Address
+    tlb_invalidate(pgdir, va);
 
 }
 
@@ -778,11 +780,14 @@ check_page(void)
 	fl = page_free_list;
 	page_free_list = 0;
 
+
 	// should be no free memory
 	assert(!page_alloc(0));
 
 	// there is no page allocated at address 0
 	assert(page_lookup(kern_pgdir, (void *) 0x0, &ptep) == NULL);
+
+    assert(0);
 
 	// there is no free memory, so we can't allocate a page table
 	assert(page_insert(kern_pgdir, pp1, 0x0, PTE_W) < 0);
