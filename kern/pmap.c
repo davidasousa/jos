@@ -401,7 +401,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
         physaddr_t newPPaddr = page2pa(newPP);  
         *table |= newPPaddr;
     } 
-    //*table |= PTE_P; // Setting Present Bit
+    //*table |= PTE_P; // Setting Present Bit Makes The Code Loop Forever
     return KADDR(pte_pa);
 }
 
