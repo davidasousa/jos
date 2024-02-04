@@ -182,6 +182,7 @@ mem_init(void)
 	check_page_free_list(1);
 	check_page_alloc();
 	check_page();
+    assert(0);
 
 	//////////////////////////////////////////////////////////////////////
 	// Now we set up virtual memory
@@ -425,15 +426,15 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
-    uint32_t dir_idx = PDX(va); // Directory Index
-    uint32_t tabl_idx = PTX(va); // Page Table Index
+    for(size_t idx = 0; idx < size; idx++) {
+        uintptr_t curr_va = va += idx << 12; // Next Open Table Idx
 
-    pde_t* dir = &pgdir[dir_idx]; // Corresponding Directory
-                                  
-    pte_t* pp_pte = (pte_t*) PTE_ADDR(*dir); // Address Of The PTE Table For The Dir
-                                             
-    pte_t* table = &pp_pte[tabl_idx]; // Corresponding Table
+        pte_t* curr_pte = pgdir_walk(pgdir, (void*) curr_va, 1); // Getting The Current PTE
+        physaddr_t curr_pa = pa + idx * PGSIZE; // Getting The Current Phys Addr
 
+        *curr_pte |= (perm | PTE_P); // Setting The Permissions
+        *curr_pte |= curr_pa; // Setting The PA In The PTE
+    }
 }
 
 //
@@ -464,6 +465,8 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
+
+
     return 0;
 }
 
@@ -481,7 +484,17 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
-	return NULL;
+    pte_t* current_pte = pgdir_walk(pgdir, va, 0); // Looking Up The Corresponding PTE
+    if(current_pte == NULL)
+        return NULL;
+    if((*current_pte & PTE_P) == 0) 
+        return NULL;
+    
+    physaddr_t page_pa = PTE_ADDR(*current_pte); // Getting The PA From The PTE
+
+    struct PageInfo* current_page = pa2page(page_pa); 
+
+	return current_page;
 }
 
 //
@@ -503,6 +516,14 @@ void
 page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
+    struct PageInfo* curr_page = page_lookup(pgdir, va, NULL); // Getting The Current Page
+    curr_page -> pp_ref -= 1;
+    if(curr_page -> pp_ref == 0)
+        page_free(curr_page);
+
+    pte_t* table = pgdir_walk(pgdir, va, 0); // Finding The Corresponding Pte
+    // third bullet point
+
 }
 
 //
