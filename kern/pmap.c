@@ -273,9 +273,7 @@ page_init(void)
 	// free pages!
     
     // Base Memory -> The Entire 4GB 
-
-    // Note -> calculate offset
-    uint32_t nextfree_idx = PADDR((void*) boot_alloc(0)) / PGSIZE;
+    uint32_t nextfree_idx = PADDR((void*) boot_alloc(0)) / PGSIZE; // Next Free Page Idx
     pages[0].pp_ref = 1; // Setting References To 1 -> In Use
     pages[0].pp_link = NULL; // Null Due To Page Being In Use -> Link Is For Free Pages
     for(size_t idx = (IOPHYSMEM / PGSIZE); idx < nextfree_idx ; idx++) {
@@ -334,6 +332,7 @@ page_free(struct PageInfo *pp)
 	// pp->pp_link is not NULL.
     if(pp -> pp_ref != 0 || pp -> pp_link != NULL)
        panic("Page Free Error: Reference Count > 0 Or Link Not Null"); 
+
     pp -> pp_link = page_free_list;
     page_free_list = pp;
 }
@@ -402,7 +401,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
             return NULL;
 
         // Allocating The New PP
-        struct PageInfo* newPP = page_alloc(ALLOC_ZERO | PTE_W | PTE_U | PTE_P); 
+        struct PageInfo* newPP = page_alloc(ALLOC_ZERO | PTE_W | PTE_U | PTE_P); // This Alloc Failed
         if(newPP == NULL) // Alloc Failed
             return NULL;
         newPP -> pp_ref++;
@@ -475,14 +474,13 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
     // increase the reference count 
 
     pte_t* pte = pgdir_walk(pgdir, va, 1); // Current PTE 
-    // PTE NULL -> Out Of Memory
-    if(pte == NULL) 
+    if(pte == NULL) // PTE -> NULL Out Of Memory
         return -E_NO_MEM;
 
     // If The Page Already Exists
     physaddr_t pp_pa = page2pa(pp); 
     if(*pte & PTE_P)  {
-        page_remove(pgdir, va); // Remove The Existing Page -> The Reference Number Would Stay The Same
+        page_remove(pgdir, va); // Remove The Existing Page
         tlb_invalidate(pgdir, va); // Invalidating The Va
     }
     pte = (pte_t*)pp_pa; // Assigning The New Page
