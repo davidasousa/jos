@@ -158,8 +158,7 @@ mem_init(void)
 	// each physical page, there is a corresponding struct PageInfo in this
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
-	// Your code goes here:
-    
+	// Your code goes here:    
 
     // Allocating Space For The Page Info Table 
     pages = boot_alloc(npages * sizeof(struct PageInfo)); 
@@ -335,7 +334,6 @@ page_free(struct PageInfo *pp)
 	// pp->pp_link is not NULL.
     if(pp -> pp_ref != 0 || pp -> pp_link != NULL)
        panic("Page Free Error: Reference Count > 0 Or Link Not Null"); 
-
     pp -> pp_link = page_free_list;
     page_free_list = pp;
 }
@@ -378,14 +376,24 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in     
     pde_t* dir = &pgdir[PDX(va)]; // PDE_T For The Directory
-    *dir |= PTE_P; // Setting The Present Bit In The Directory
+    if((*dir & PTE_P) == 0) {
+        if(create == 0)
+            return NULL;
 
-    physaddr_t pte_pa = PTE_ADDR(*dir) + PTX(va); // PTE_T For The Directory
+        // Allocating The New PTE
+        struct PageInfo* newPP = page_alloc(ALLOC_ZERO | PTE_W | PTE_U | PTE_P); 
+        if(newPP == NULL) // Alloc Failed
+            return NULL;
+        newPP -> pp_ref++;
 
-    pte_t* table = (pte_t*)pte_pa; // Casting Address To The PTE
-
-    // First Assertion Notes -> Address is 0, as the flags are set when they should not be
-
+        // Finding The PA & Placing In The PTE
+        physaddr_t newPPaddr = page2pa(newPP);  
+        *dir = newPPaddr;
+        *dir |= PTE_P; // Setting The Present Bit In The Directory
+    }
+    physaddr_t pte_base_pa = PTE_ADDR(*dir); // PTE_T Base Address Held In PDE
+    pte_t* pte_base = (pte_t*) pte_base_pa; // Base Array For The PTE
+    pte_t* table = &pte_base[PTX(va)]; // Corresponding PTE_T at Index
     // If The Table Is Not Present
     if((*table & PTE_P) == 0) {
         if(create == 0) // Create Flag - Off
@@ -399,10 +407,10 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 
         // Finding The PA & Placing In The PTE
         physaddr_t newPPaddr = page2pa(newPP);  
-        *table |= newPPaddr;
+        *table = newPPaddr;
     } 
     //*table |= PTE_P; // Setting Present Bit Makes The Code Loop Forever
-    return KADDR(pte_pa);
+    return KADDR((physaddr_t)table);
 }
 
 //
@@ -784,10 +792,10 @@ check_page(void)
 
 	// there is no page allocated at address 0
 	assert(page_lookup(kern_pgdir, (void *) 0x0, &ptep) == NULL);
-    assert(0);
 
 	// there is no free memory, so we can't allocate a page table
 	assert(page_insert(kern_pgdir, pp1, 0x0, PTE_W) < 0);
+    assert(0);
 
 	// free pp0 and try again: pp0 should be used for page table
 	page_free(pp0);
