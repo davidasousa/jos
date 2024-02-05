@@ -469,20 +469,28 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
-    pte_t* pte = pgdir_walk(pgdir, va, 0); // Current PTE 
-    if(pte == NULL) // No Memory Create -> 0
+    // Call with 1 from the beginning and if it is null there is no memory otherwise replace the entry
+    // if present bit is set than replace
+    // otherwise remove and replace 
+    // increase the reference count 
+
+    pte_t* pte = pgdir_walk(pgdir, va, 1); // Current PTE 
+    // PTE NULL -> Out Of Memory
+    if(pte == NULL) 
         return -E_NO_MEM;
 
-    if(*pte & PTE_P) {
-        page_remove(pgdir, va);
-        pte_t* pte = pgdir_walk(pgdir, va, 1);
-        if(pte == NULL)
-            return -E_NO_MEM;
+    // If The Page Already Exists
+    physaddr_t pp_pa = page2pa(pp); 
+    if(*pte & PTE_P)  {
+        page_remove(pgdir, va); // Remove The Existing Page -> The Reference Number Would Stay The Same
+        pte = (pte_t*)pp_pa; // Assigning The New Page
     }
-    pp -> pp_ref++;
-
-    physaddr_t pp_pa = page2pa(pp);
-    pte = (pte_t*)pp_pa;
+    else {
+        pte = (pte_t*)pp_pa; // Assigning The New Page
+    }
+    struct PageInfo* page = pa2page(pp_pa);
+    page -> pp_ref += 1;
+    
     return 0;
 }
 
@@ -501,6 +509,8 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
     pte_t* current_pte = pgdir_walk(pgdir, va, 0); // Looking Up The Corresponding PTE
+    if(current_pte == NULL)
+        cprintf("\nFFFF\n"); 
     if(current_pte == NULL)
         return NULL;
 
