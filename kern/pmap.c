@@ -483,13 +483,12 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
     physaddr_t pp_pa = page2pa(pp); 
     if(*pte & PTE_P)  {
         page_remove(pgdir, va); // Remove The Existing Page -> The Reference Number Would Stay The Same
-        pte = (pte_t*)pp_pa; // Assigning The New Page
+        tlb_invalidate(pgdir, va); // Invalidating The Va
     }
-    else {
-        pte = (pte_t*)pp_pa; // Assigning The New Page
-    }
+    pte = (pte_t*)pp_pa; // Assigning The New Page
+                         
     struct PageInfo* page = pa2page(pp_pa);
-    page -> pp_ref += 1;
+    page -> pp_ref++;
     
     return 0;
 }
@@ -509,8 +508,6 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
     pte_t* current_pte = pgdir_walk(pgdir, va, 0); // Looking Up The Corresponding PTE
-    if(current_pte == NULL)
-        cprintf("\nFFFF\n"); 
     if(current_pte == NULL)
         return NULL;
 
