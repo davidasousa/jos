@@ -391,10 +391,12 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
         *dir = newPPaddr;
         *dir |= PTE_P; // Setting The Present Bit In The Directory
     }
+
     physaddr_t pte_base_pa = PTE_ADDR(*dir); // PTE_T Base Address Held In PDE
     pte_t* pte_base = (pte_t*) pte_base_pa; // Base Array For The PTE
     pte_t* table = &pte_base[PTX(va)]; // Corresponding PTE_T at Index
     // If The Table Is Not Present
+
     if((*table & PTE_P) == 0) {
         if(create == 0) // Create Flag - Off
             return NULL;
@@ -409,7 +411,8 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
         physaddr_t newPPaddr = page2pa(newPP);  
         *table = newPPaddr;
     } 
-    //*table |= PTE_P; // Setting Present Bit Makes The Code Loop Forever
+
+    *table |= PTE_P; // Setting Present Bit Makes The Code Loop Forever
     return KADDR((physaddr_t)table);
 }
 
@@ -467,16 +470,19 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
     pte_t* pte = pgdir_walk(pgdir, va, 0); // Current PTE 
+    if(pte == NULL) // No Memory Create -> 0
+        return -E_NO_MEM;
+
     if(*pte & PTE_P) {
         page_remove(pgdir, va);
         pte_t* pte = pgdir_walk(pgdir, va, 1);
+        if(pte == NULL)
+            return -E_NO_MEM;
     }
     pp -> pp_ref++;
 
     physaddr_t pp_pa = page2pa(pp);
-    *pte &= ~0xFFFFF000;
-    *pte |= pp_pa;
-
+    pte = (pte_t*)pp_pa;
     return 0;
 }
 
@@ -497,6 +503,10 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
     pte_t* current_pte = pgdir_walk(pgdir, va, 0); // Looking Up The Corresponding PTE
     if(current_pte == NULL)
         return NULL;
+
+    if(pte_store != 0) {
+        *current_pte = **pte_store; // Storing The Pte In The Current Pte
+    }
     
     physaddr_t page_pa = PTE_ADDR(*current_pte); // Getting The PA From The PTE
 
@@ -795,11 +805,11 @@ check_page(void)
 
 	// there is no free memory, so we can't allocate a page table
 	assert(page_insert(kern_pgdir, pp1, 0x0, PTE_W) < 0);
-    assert(0);
 
 	// free pp0 and try again: pp0 should be used for page table
 	page_free(pp0);
 	assert(page_insert(kern_pgdir, pp1, 0x0, PTE_W) == 0);
+    assert(0);
 	assert(PTE_ADDR(kern_pgdir[0]) == page2pa(pp0));
 	assert(check_va2pa(kern_pgdir, 0x0) == page2pa(pp1));
 	assert(pp1->pp_ref == 1);
