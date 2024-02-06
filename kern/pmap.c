@@ -373,48 +373,6 @@ page_decref(struct PageInfo* pp)
 pte_t*
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
-	// Fill this function in     
-    /*
-    pde_t* dir = &pgdir[PDX(va)]; // PDE_T For The Directory
-    if((*dir & PTE_P) == 0) {
-        if(create == 0) // Table Entry Not Present And Create Off
-            return NULL;
-
-        struct PageInfo* newPP = page_alloc(ALLOC_ZERO | PTE_W | PTE_U | PTE_P); 
-        if(newPP == NULL) // Alloc Failed
-            return NULL;
-        newPP -> pp_ref++;
-
-        // Finding The PA & Placing In The PTE
-        physaddr_t newPPaddr = page2pa(newPP);  
-        *dir = newPPaddr;
-        *dir |= PTE_P; // Setting The Present Bit In The Directory
-    }
-
-    physaddr_t pte_base_pa = PTE_ADDR(*dir); // PTE_T Base Address Held In PDE
-    pte_t* pte_base = (pte_t*) pte_base_pa; // Base Array For The PTE
-    pte_t* table = &pte_base[PTX(va)]; // Corresponding PTE_T at Index
-
-    if((*table & PTE_P) == 0) {
-        if(create == 0) // Page Not Present And Create Off
-            return NULL;
-
-        //struct PageInfo* newPP = page_alloc(ALLOC_ZERO | PTE_W | PTE_U | PTE_P); 
-        
-        if(newPP == NULL) // Alloc Failed
-            return NULL;
-        // If The Table Is Not Present
-        newPP -> pp_ref++;
-
-        // Finding The PA & Placing In The PTE
-        physaddr_t newPPaddr = page2pa(newPP);  
-        *table = newPPaddr;
-
-    } 
-    *table |= PTE_P;
-
-    return KADDR((physaddr_t)table);
-    */
     pde_t* dir = &pgdir[PDX(va)]; // PDE_T For The Directory
 
     if((*dir & PTE_P) == 0) { // If The Table Entry Does Not Exist Yet
@@ -422,22 +380,22 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
                                          
         // Allocating A New PTE
         struct PageInfo* newPTE = page_alloc(ALLOC_ZERO | PTE_W | PTE_U | PTE_P); 
-        if(newPTE == NULL) { return NULL; }// Alloc Failed
+        if(newPTE == NULL) { return NULL; } // Alloc Failed
                                           
         newPTE -> pp_ref++;
 
-        // Finding The PA Of The PTE & Placing In The PDE
-        physaddr_t newPTEaddr = page2pa(newPTE);  
-        *dir = newPTEaddr; // Placing The PTE Address In The Dir
+        // Should Store The Page Tables Physical Number
+        physaddr_t PTEpa = page2pa(newPTE); // PA Of The PTE
+        size_t pageNum = PGNUM(PTEpa);
+
+        *dir = pageNum << PGSHIFT; // Placing The PTE Address In The Dir
         *dir |= PTE_P; // Setting The Present Bit In The Directory
     }
+
     // At This Point The PTE Exists
-
-    pte_t* pteBase = (pte_t*)PTE_ADDR(*dir); // Base Address Of The PTE Casted To A PTE*
-                                             
+    pte_t* pteBase = (pte_t*)PTE_ADDR(*dir); // Base Address Of The PTE Casted To A PTE*                                         
     pte_t* pte = &pteBase[PTX(va)]; // The PTE For The Va
-
-    return pte;
+    return KADDR((physaddr_t)pte); // Return The VA Of The Pte
 }
 
 //
@@ -488,23 +446,24 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
     // if present bit is set than replace
     // otherwise remove and replace 
     // increase the reference count 
-    pte_t* pte = pgdir_walk(pgdir, va, 1); // Current PTE 
+
+    pte_t* pte = pgdir_walk(pgdir, va, 1); // Current PTE VA
     if(pte == NULL) // PTE -> NULL Out Of Memory
         return -E_NO_MEM;
 
     // If The Page Already Exists
     if(*pte & PTE_P)  {
+        // does not enter here
         page_remove(pgdir, va); // Remove The Existing Page
-        assert(0);
         tlb_invalidate(pgdir, va); // Invalidating The Va
     } 
     physaddr_t pp_pa = page2pa(pp); // Physical Address Of The Page
-    
-    *pte = pp_pa; // Assigning The Address
-    *pte |= PTE_P; // Assigning The Present Bit
-                   
-    pp -> pp_ref++;
-    
+    size_t pgnum = PGNUM(pp_pa);
+
+    *pte = pgnum << PGSHIFT; // Assigning The Address
+    *pte |= (perm | PTE_P); // Assigning The Permissions
+
+    pp -> pp_ref++; 
     return 0;
 }
 
@@ -528,13 +487,10 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
     }
 
     if(pte_store != 0) {
-        //*current_pte = **pte_store; // Storing The Pte In The Current Pte
-    }
-    
+        *current_pte = **pte_store; // Storing The Pte In The Current Pte
+    } 
     physaddr_t page_pa = PADDR(va); // Getting The PA From The PTE
-
-    struct PageInfo* current_page = pa2page(page_pa); 
-    
+    struct PageInfo* current_page = pa2page(page_pa);  
 	return current_page;
 }
 
@@ -557,13 +513,11 @@ void
 page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
-    assert((uint32_t)va < KERNBASE);
-
-    struct PageInfo* page = page_lookup(pgdir, va, 0); // Getting The Current Page -> No Replacing (0)
+    struct PageInfo* page = page_lookup(pgdir, va, 0); 
+    assert(0);
     if(page == NULL) { return; }
 
     page_decref(page);
-
 
     if(page -> pp_ref == 0) // Freeing The Page If The PP Ref Is 0
         page_free(page);
@@ -843,7 +797,6 @@ check_page(void)
 	assert(page_insert(kern_pgdir, pp1, 0x0, PTE_W) == 0);
 	assert(PTE_ADDR(kern_pgdir[0]) == page2pa(pp0));
 	assert(check_va2pa(kern_pgdir, 0x0) == page2pa(pp1));
-    assert(0);
 	assert(pp1->pp_ref == 1);
 	assert(pp0->pp_ref == 1);
 
@@ -854,6 +807,7 @@ check_page(void)
 
 	// should be no free memory
 	assert(!page_alloc(0));
+    assert(0);
 
 	// should be able to map pp2 at PGSIZE because it's already there
 	assert(page_insert(kern_pgdir, pp2, (void*) PGSIZE, PTE_W) == 0);
