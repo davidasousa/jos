@@ -376,26 +376,26 @@ pte_t*
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
     pde_t* pde = &pgdir[PDX(va)]; // Relevant Directory
-
     // If The Table Does Not Exist Yet
     if((*pde & PTE_P) == 0) { // Directory Stores The Present Bit For The Table
         if(create == 0) { return NULL; } // Create Off -> Return NULL
         
         struct PageInfo* new_pte = page_alloc(ALLOC_ZERO); // Allocating The New Page
-        if(new_pte == NULL) { 
-            return NULL; 
-        }
+        if(new_pte == NULL) { return NULL; } // Out Of Memory
         new_pte -> pp_ref++; // Increasing Reference Count
 
-        size_t new_pte_page_idx = page2pa(new_pte) / PGSIZE; // Page Idx Of The New Page Table
+        physaddr_t new_pte_pa = page2pa(new_pte); // PA Of The PTE
 
-        *pde = (new_pte_page_idx << PGSHIFT); // Placing New Page Idx In Dir
+        *pde = new_pte_pa; // Placing New Page Idx In Dir
         *pde |= PTE_P; // Setting The Present Bit
+        cprintf("\n%lx %lx\n", *pde, pgdir[0]);
     }
 
-    pte_t* pte = &pde[PTX(va)]; // Relevant PTE
+    //pte_t* pte = &((PTE_ADDR(*pde))[PTX(va)]);
+    //pte_t* pte = &(((pte_t*)PTE_ADDR(*pde))[PTX(va)]);
 
-    return pte;
+    pte_t* pte_base = (pte_t*)PTE_ADDR(*pde);
+    return KADDR((physaddr_t)&pte_base[PTX(va)]);
 }
 
 //
@@ -448,18 +448,15 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
     // increase the reference count 
     
     pte_t* pte = pgdir_walk(pgdir, va, 1); // Creating New PTE If Necessary (Increases PP_Ref)
-    if(pte == NULL) { 
-        return -E_NO_MEM; 
-    } // Out Of Memory
-    
+    if(pte == NULL) { return -E_NO_MEM; } // Out Of Memory 
     // If The Page Table Already Had A Mapping
+
+    pp -> pp_ref++;
     if(*pte & PTE_P) {
         page_remove(pgdir, va); // Removing The Mapping
         tlb_invalidate(pgdir,va);
     }
-
-    size_t pp_idx = page2pa(pp) / PGSIZE;
-    *pte = (pp_idx << PGSHIFT);
+    *pte = page2pa(pp); // here is where things are going wrong
     *pte |= (perm | PTE_P);
     return 0;
 }
@@ -479,18 +476,20 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
     pte_t* pte = pgdir_walk(pgdir, va, 0);
-    if(pte == NULL) { return NULL; } // No Table Mapped
+    if(pte == NULL) { return NULL; }
+                                     
     if(pte_store != 0) { // If PTE Store Isnt Off Store
-        *pte = **pte_store;
+        *pte_store = pte;
     } 
-    if((*pte & PTE_P) == 0) { return NULL; } // Present Bit Not Set No Page Mapped
+
+    if((*pte & PTE_P) == 0) { return NULL; } // No Page Mapped
     
-    return &pages[PTE_ADDR(*pte)];
+    return pa2page(PTE_ADDR(*pte));
 }
 
 //
 // Unmaps the physical page at virtual address 'va'.
-// If there is no physical page at that address, silently does nothing.
+// If there is no physical page at that address, silently does nothing. <--
 //
 // Details:
 //   - The ref count on the physical page should decrement.
@@ -507,15 +506,20 @@ void
 page_remove(pde_t *pgdir, void *va)
 {
     struct PageInfo* page = page_lookup(pgdir, va, 0); // Finding The Page
-    page_decref(page); // Decrementing The Red
+    if(page == NULL) { return; } // Do Nothing No Mapping
+
+    page_decref(page); // Decrementing The Red -> After This The Code
 
     if(page -> pp_ref == 0) 
-        page_free(page);
+        page_free(page); 
 
-    tlb_invalidate(pgdir, va); // Invalidating The TLB
 
     pte_t* pte = pgdir_walk(pgdir, va, 0);
+
     *pte = 0;
+    cprintf("\n5 %lx\n", pgdir[0]); // good here
+                                    
+    tlb_invalidate(pgdir, va); // Invalidating The TLB
 }
 
 //
@@ -782,8 +786,8 @@ check_page(void)
 
 	// free pp0 and try again: pp0 should be used for page table
 	page_free(pp0);
-	assert(page_insert(kern_pgdir, pp1, 0x0, PTE_W) == 0); // returning negative here
-    assert(0);
+	assert(page_insert(kern_pgdir, pp1, 0x0, PTE_W) == 0); 
+    cprintf("\n%lx %lx\n", PTE_ADDR(kern_pgdir[0]), page2pa(pp0));
 	assert(PTE_ADDR(kern_pgdir[0]) == page2pa(pp0));
 	assert(check_va2pa(kern_pgdir, 0x0) == page2pa(pp1));
 	assert(pp1->pp_ref == 1);
@@ -799,7 +803,6 @@ check_page(void)
 
 	// should be able to map pp2 at PGSIZE because it's already there
 	assert(page_insert(kern_pgdir, pp2, (void*) PGSIZE, PTE_W) == 0);
-    assert(0);
 	assert(check_va2pa(kern_pgdir, PGSIZE) == page2pa(pp2));
 	assert(pp2->pp_ref == 1);
 
@@ -817,6 +820,7 @@ check_page(void)
 	assert(pp2->pp_ref == 1);
 	assert(*pgdir_walk(kern_pgdir, (void*) PGSIZE, 0) & PTE_U);
 	assert(kern_pgdir[0] & PTE_U);
+    assert(0);
 
 	// should be able to remap with fewer permissions
 	assert(page_insert(kern_pgdir, pp2, (void*) PGSIZE, PTE_W) == 0);
