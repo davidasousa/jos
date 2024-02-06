@@ -179,7 +179,6 @@ mem_init(void)
 	check_page_free_list(1);
 	check_page_alloc();
 	check_page();
-    assert(0);
 
 	//////////////////////////////////////////////////////////////////////
 	// Now we set up virtual memory
@@ -331,8 +330,10 @@ page_free(struct PageInfo *pp)
 	// Fill this function in
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
-    if(pp -> pp_ref != 0 || pp -> pp_link != NULL)
-       panic("Page Free Error: Reference Count > 0 Or Link Not Null");
+    if(pp -> pp_ref != 0)
+       panic("Page Free Error: Reference Count > 0");
+    if(pp -> pp_link != NULL)
+       panic("Page Free Error: Link Not Null");
 
     pp -> pp_link = page_free_list;
     page_free_list = pp;
@@ -387,12 +388,8 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
         physaddr_t new_pte_pa = page2pa(new_pte); // PA Of The PTE
 
         *pde = new_pte_pa; // Placing New Page Idx In Dir
-        *pde |= PTE_P; // Setting The Present Bit
-        cprintf("\n%lx %lx\n", *pde, pgdir[0]);
+        *pde |= (PTE_P | PTE_W | PTE_U); // Setting The Present Bit
     }
-
-    //pte_t* pte = &((PTE_ADDR(*pde))[PTX(va)]);
-    //pte_t* pte = &(((pte_t*)PTE_ADDR(*pde))[PTX(va)]);
 
     pte_t* pte_base = (pte_t*)PTE_ADDR(*pde);
     return KADDR((physaddr_t)&pte_base[PTX(va)]);
@@ -456,7 +453,8 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
         page_remove(pgdir, va); // Removing The Mapping
         tlb_invalidate(pgdir,va);
     }
-    *pte = page2pa(pp); // here is where things are going wrong
+
+    *pte = page2pa(pp); 
     *pte |= (perm | PTE_P);
     return 0;
 }
@@ -510,15 +508,8 @@ page_remove(pde_t *pgdir, void *va)
 
     page_decref(page); // Decrementing The Red -> After This The Code
 
-    if(page -> pp_ref == 0) 
-        page_free(page); 
-
-
     pte_t* pte = pgdir_walk(pgdir, va, 0);
-
-    *pte = 0;
-    cprintf("\n5 %lx\n", pgdir[0]); // good here
-                                    
+    *pte = 0; 
     tlb_invalidate(pgdir, va); // Invalidating The TLB
 }
 
@@ -787,7 +778,6 @@ check_page(void)
 	// free pp0 and try again: pp0 should be used for page table
 	page_free(pp0);
 	assert(page_insert(kern_pgdir, pp1, 0x0, PTE_W) == 0); 
-    cprintf("\n%lx %lx\n", PTE_ADDR(kern_pgdir[0]), page2pa(pp0));
 	assert(PTE_ADDR(kern_pgdir[0]) == page2pa(pp0));
 	assert(check_va2pa(kern_pgdir, 0x0) == page2pa(pp1));
 	assert(pp1->pp_ref == 1);
@@ -820,7 +810,6 @@ check_page(void)
 	assert(pp2->pp_ref == 1);
 	assert(*pgdir_walk(kern_pgdir, (void*) PGSIZE, 0) & PTE_U);
 	assert(kern_pgdir[0] & PTE_U);
-    assert(0);
 
 	// should be able to remap with fewer permissions
 	assert(page_insert(kern_pgdir, pp2, (void*) PGSIZE, PTE_W) == 0);
@@ -857,7 +846,7 @@ check_page(void)
 	assert(pp1->pp_link == NULL);
 
 	// unmapping pp1 at PGSIZE should free it
-	page_remove(kern_pgdir, (void*) PGSIZE);
+	page_remove(kern_pgdir, (void*) PGSIZE); // Here
 	assert(check_va2pa(kern_pgdir, 0x0) == ~0);
 	assert(check_va2pa(kern_pgdir, PGSIZE) == ~0);
 	assert(pp1->pp_ref == 0);
@@ -867,7 +856,7 @@ check_page(void)
 	assert((pp = page_alloc(0)) && pp == pp1);
 
 	// should be no free memory
-	assert(!page_alloc(0));
+	assert(!page_alloc(0)); // Failing Here
 
 	// forcibly take pp0 back
 	assert(PTE_ADDR(kern_pgdir[0]) == page2pa(pp0));
