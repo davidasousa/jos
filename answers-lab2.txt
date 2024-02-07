@@ -1,0 +1,18 @@
+ECE 469 Lab 2: Memory Management
+David Sousa & Yusuf Jarada
+
+Answers To Questions:
+
+1) The rows that have been filled out are:
+
+1023: Page Table For Top 4MB Of Physical Memory
+
+2) Although the kernel and user environment are within the same memory region during memory setup, when the OS is fully transitioned into protected mode the permissions of each page will specify what the user can and cannot change, hence why page tables were set with PTE_U/PTE_W letting the OS know if the user has proper permissions. Detecting these bits will allow the kernel portion of the OS to remain protected.
+
+3) The maximum amount of physical memory that JOS can support is npages *  PGSIZE as all virtual memory will be mapped to one of these pages regardless of the permission ring level. -> 1024 * 4096 ~ 4MB of memory
+
+4) If we were actually using the maximum amount of physical memory there would be minimal page overlap or minimal occurances of pp_ref for a page table being greater than one. This overhead is basically free pages being filled until we are out of free pages or PAGE_FREE_LIST being NULL,then multiple virtual address would need to be assigned to a single physical page to create the illusion of a larger memory space than physically avaliable for the user.
+
+5) We transition to an EIP above the Kernbase when real mode is transitioned to protected mode in the mapping of the virtual addresses to the physical addresses in the second portion of the mem_init function. Now at this point EIP can continue backtracing the instruction pointer above Kernbase as the proper virtual to physical mapping has been set up. This transition is nessecary to maintain the logical progression of the instruction pointer in the virtual address domain.
+
+

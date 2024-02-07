@@ -248,6 +248,7 @@ mem_init(void)
 
 	// Some more checks, only possible after kern_pgdir is installed.
 	check_page_installed_pgdir();
+
 }
 
 // --------------------------------------------------------------
@@ -428,6 +429,7 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
         *pte = pa + idx * PGSIZE; 
         *pte |= (perm | PTE_P);
     }
+
 }
 
 //
