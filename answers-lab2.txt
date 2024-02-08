@@ -3,16 +3,21 @@ David Sousa & Yusuf Jarada
 
 Answers To Questions:
 
-1) The rows that have been filled out are:
+A) The rows that have been filled out are:
 
-1023: Page Table For Top 4MB Of Physical Memory
+Format: (Index : Virtual Address : Small Explanation)
 
-2) Although the kernel and user environment are within the same memory region during memory setup, when the OS is fully transitioned into protected mode the permissions of each page will specify what the user can and cannot change, hence why page tables were set with PTE_U/PTE_W letting the OS know if the user has proper permissions. Detecting these bits will allow the kernel portion of the OS to remain protected.
+0 : 0x1000 : Empty Memory
+1 : UTEMP : Temporary Page Mappings During Memory Setup
+956 : UPAGES : Read Only User Page Structure
+959 : ULIM : Memory Mapped IO
+960 : KERNBASE : Remapped Physical Memory
+961 - 1023 : KERNBASE + Offset : Remapped Chunks Of Memory From 0 To KERNBASE, Now Mapped Above Kern Base. (Offset In Multiples 0f 0x400000)
 
-3) The maximum amount of physical memory that JOS can support is npages *  PGSIZE as all virtual memory will be mapped to one of these pages regardless of the permission ring level. -> 1024 * 4096 ~ 4MB of memory
+B) Although the kernel and user environment are within the same memory region during memory setup, when the OS is fully transitioned into protected mode the permissions of each page will specify what the user can and cannot change, hence why page tables were set with PTE_U/PTE_W letting the OS know if the user has proper permissions. Detecting these bits will allow the kernel portion of the OS to remain protected. Segmentation or the process of running user programs in another portion of memory without directly rewriting the code also maintains that the non user portion will be preserverd across multiple users / usages.
 
-4) If we were actually using the maximum amount of physical memory there would be minimal page overlap or minimal occurances of pp_ref for a page table being greater than one. This overhead is basically free pages being filled until we are out of free pages or PAGE_FREE_LIST being NULL,then multiple virtual address would need to be assigned to a single physical page to create the illusion of a larger memory space than physically avaliable for the user.
+C) The maximum amount of physical memory that JOS can support is npages * npages * PGSIZE as all virtual memory will be mapped to one of these pages regardless of the permission ring level. -> 1024 Pages * 1024 Pages * 4096 B ~ 4GB of memory present on JOS.
 
-5) We transition to an EIP above the Kernbase when real mode is transitioned to protected mode in the mapping of the virtual addresses to the physical addresses in the second portion of the mem_init function. Now at this point EIP can continue backtracing the instruction pointer above Kernbase as the proper virtual to physical mapping has been set up. This transition is nessecary to maintain the logical progression of the instruction pointer in the virtual address domain.
+D) If we were using the maximum amount of physical memory for proper virtual memory management, the creation of one page being mapped to a virtual address would require a new page directory being created and marked present with a corresponding page table entry then with a full page being created itself. This means that for the allocation of one page there would be 3 full pages being created at the minimum which is 4 KB + 4 KB + 4 KB, which may be far greater than the actual space needed. Say we only needed 2 KB then we would be using 12 KB to properly page the newly created page.
 
-
+E) We transition to an EIP above the Kernbase when real mode is transitioned to protected mode in the mapping of the virtual addresses to the physical addresses in the second portion of the mem_init function. Now at this point memory is taking place via virtual addressing and EIP can continue backtracing the instruction pointer above Kernbase as the proper virtual to physical mapping has been set up. This transition is nessecary to maintain the logical progression of the instruction pointer in the virtual address domain with proper segmentation and protections enabled.
