@@ -173,8 +173,6 @@ mem_init(void)
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
 
-	//ADDING CODE HERE: YUSUF JARADA
-
 	// This created NENV number of enviroments and allocates enough memory for them
 	envs = (struct Env *)boot_alloc(NENV * sizeof(struct Env));
 	memset(envs, 0, NENV * sizeof(struct Env));
@@ -213,8 +211,6 @@ mem_init(void)
 	//    - the new image at UENVS  -- kernel R, user R
 	//    - envs itself -- kernel RW, user NONE
 	// LAB 3: Your code here.
-
-	//ADDING CODE HERE: YUSUF JARADA
 
 	// MAPPING MEMEORY FOR THE ENVIROMENT ARRAY WITH CORRECT SIZE AND PERMISIONS
 
