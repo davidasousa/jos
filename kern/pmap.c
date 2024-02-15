@@ -493,8 +493,7 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
         page_remove(pgdir, va); // Removing The Mapping
         tlb_invalidate(pgdir,va);
     }
-
-    *pte = page2pa(pp); 
+    *pte = page2pa(pp); // PTE Stores The Physical Page Number << 12 (4096)
     *pte |= (perm | PTE_P);
     return 0;
 }

@@ -297,17 +297,14 @@ region_alloc(struct Env *e, void *va, size_t len)
     va = ROUNDDOWN(va, PGSIZE); 
     len = ROUNDUP(len, PGSIZE);
 
-    // Mapping the pgdir to the va
-    e -> env_pgdir = (*va >> PDXSHIFT) << PDXSHIFT;
+    // Mapping the pgdir to the va <--
     
-
-    for(size_t page_idx = 0; page_idx < (va + len) / PGSIZE; page_idx++) {
-       // allocate pages
-       // map to entries in the correspodnign directory entry
-
+    // The Walking Is Done For Us In Page Insert
+    for(size_t page_idx = 0; page_idx < ((uint32_t)va + len) / PGSIZE; page_idx++) {
+        struct PageInfo* page = page_alloc(ALLOC_ZERO); // Check Flags
+        // Inserting The Page
+        page_insert(e -> env_pgdir, page, va + page_idx * PGSIZE, 0);
     }
-
-
 }
 
 //
