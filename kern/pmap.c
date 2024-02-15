@@ -231,8 +231,6 @@ mem_init(void)
     boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W); 
     
     uint32_t size = (KSTACKTOP - KSTKSIZE) - (KSTACKTOP - PTSIZE); 
-    //boot_map_region(kern_pgdir, KSTACKTOP - PTSIZE,  // Ask About This
-    //               size, PADDR(bootstack - KSTKSIZE), PTE_W); 
     
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.

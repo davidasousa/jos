@@ -117,6 +117,17 @@ env_init(void)
 	// Set up envs array
 	// LAB 3: Your code here.
 
+    struct Env* prev_env = env_free_list; // The Previous Free Environment 
+    for(size_t idx = 0; idx < NENV; idx++) 
+    {
+        struct Env* curr_env = &envs[idx]; // Getting The Current Environment At Idx
+        *curr_env = (struct Env) { 
+            .env_status = ENV_FREE, // Setting To Be Free
+            .env_link = NULL, 
+        };
+        prev_env -> env_link = curr_env; // Connecting Previous To Current
+        prev_env = curr_env; // Assigning Current To Be Previous
+    }
 	// Per-CPU part of the initialization
 	env_init_percpu();
 }
@@ -179,7 +190,21 @@ env_setup_vm(struct Env *e)
 	//    - The functions in kern/pmap.h are handy.
 
 	// LAB 3: Your code here.
+    p -> pp_ref++; 
+    e -> env_pgdir = (pde_t*) page2kva(p); // Setting env pgdir
 
+    // Setting The Kernel Permissions
+	e->env_pgdir[PDX(UTOP)] = PADDR(e->env_pgdir) | PTE_P | PTE_U; // Setting UTOP
+	e->env_pgdir[PDX(UPAGES)] = PADDR(e->env_pgdir) | PTE_P | PTE_U; // Setting UPAGES
+	e->env_pgdir[PDX(ULIM)] = PADDR(e->env_pgdir) | PTE_P | PTE_W; // Setting UPAGES
+    
+    size_t kstack_pos = 0; // Variable For Incrementing Through The Kernel Stacks In Chunks Of Stacks
+
+    while(kstack_pos < PTSIZE) 
+    {
+	    e->env_pgdir[PDX(MMIOLIM + kstack_pos + KSTKGAP)] = PADDR(e->env_pgdir) | PTE_P | PTE_W;
+        kstack_pos += KSTKSIZE + KSTKGAP; // Incrementing To The Next Chunk
+    }
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
@@ -267,6 +292,22 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
+    
+    // Rounding Va And Len To Fit The Proper Size
+    va = ROUNDDOWN(va, PGSIZE); 
+    len = ROUNDUP(len, PGSIZE);
+
+    // Mapping the pgdir to the va
+    e -> env_pgdir = (*va >> PDXSHIFT) << PDXSHIFT;
+    
+
+    for(size_t page_idx = 0; page_idx < (va + len) / PGSIZE; page_idx++) {
+       // allocate pages
+       // map to entries in the correspodnign directory entry
+
+    }
+
+
 }
 
 //
