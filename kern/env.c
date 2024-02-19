@@ -511,7 +511,10 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
-    e -> env_status = ENV_RUNNABLE; // Status -> Runnable
+	if(curenv != NULL && curenv->env_status == ENV_RUNNING){ //setting curent env to runable(step1-1)
+		curenv->env_status = ENV_RUNNABLE;
+	}
+    // e -> env_status = ENV_RUNNABLE; // Status -> Runnable replaced with code above
     curenv = e; // Setting Current Environment
     e -> env_status = ENV_RUNNING; // Status -> Running
     e -> env_runs++;
