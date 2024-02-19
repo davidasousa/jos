@@ -284,13 +284,13 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   (Watch out for corner-cases!)
     
     // Rounding Va And Len To Fit The Proper Size
+	len = (uint32_t) ROUNDUP(va + len, PGSIZE);
     va = ROUNDDOWN(va, PGSIZE); 
-    len = (uint32_t) ROUNDUP(va + len, PGSIZE);
 
     struct PageInfo* page;
 
     // Iterating Va -> Va + Len
-    for(void* page_pos = va; page_pos < va + len; page_pos += PGSIZE) {
+    for(void* page_pos = va; page_pos < (void*) len; page_pos += PGSIZE) {
         if((page = page_alloc(ALLOC_ZERO)) == NULL) // Check Flags
             panic("Error Allocating A Page");
         page_insert(e -> env_pgdir, page, page_pos, PTE_U | PTE_W);
