@@ -116,19 +116,20 @@ env_init(void)
 {
 	// Set up envs array
 	// LAB 3: Your code here.
-
-    // Insertion To The Head Of env free list
-
+    struct Env* prev = NULL;
     for(size_t idx = 0; idx < NENV; idx++) 
     {
-        struct Env* curr_env = &envs[idx]; // Getting The Current Environment At Idx
-        *curr_env = (struct Env) { 
-            .env_status = ENV_FREE, // Setting To Be Free
-            .env_link = env_free_list, 
+        envs[idx] = (struct Env) {
+           .env_status = ENV_FREE,
+           .env_link = NULL,
+           .env_id = 0,
         };
-        env_free_list = curr_env; // Assigning Current To Be Previous
+        if(prev) // Updating All Links To Point From Prev To The Next
+            prev -> env_link = &envs[idx];
+        prev = &envs[idx];
     }
-
+    // Updating Env Free List To Be The First Element
+    env_free_list = &envs[0]; 
 	// Per-CPU part of the initialization
 	env_init_percpu();
 }
@@ -198,7 +199,6 @@ env_setup_vm(struct Env *e)
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
-
 	return 0;
 }
 
@@ -393,7 +393,7 @@ env_create(uint8_t *binary, enum EnvType type)
     struct Env* e;
     if(env_alloc(&e, 0) != 0)
         panic("Error During Environment Allocation");
-    e -> env_type = type; // gets reset here
+    e -> env_type = type; 
     load_icode(e,binary);
 }
 
@@ -511,10 +511,9 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
-	if(curenv != NULL && curenv->env_status == ENV_RUNNING){ //setting curent env to runable(step1-1)
+	if(curenv != NULL && curenv->env_status == ENV_RUNNING) { 
 		curenv->env_status = ENV_RUNNABLE;
 	}
-    // e -> env_status = ENV_RUNNABLE; // Status -> Runnable replaced with code above
     curenv = e; // Setting Current Environment
     e -> env_status = ENV_RUNNING; // Status -> Running
     e -> env_runs++;
