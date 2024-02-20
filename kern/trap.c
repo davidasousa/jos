@@ -61,6 +61,25 @@ static const char *trapname(int trapno)
 
 // XYZ: write a function declaration here...
 // e.g., void t_divide();
+// Interupts 0 - 31 From The Intel Manual
+void t_divide(); // Divide Error
+void t_debug(); // Debug Exception
+void t_nmi(); // Non Maskable Interrupt
+void t_brkpt(); // Breakpoint
+void t_oflow(); // Overflow
+void t_bound(); // Bound Range Exceeded
+void t_illop(); // Invalid Opcode
+void t_device(); // Requested Device Not Avaliable
+void t_dblflt(); // Double Fault
+void t_tss(); // TSS Segment Invalid
+void t_segnp(); // Segment Not Present
+void t_stack(); // Segmentation Fault On Stack
+void t_gpflt(); // General Protection
+void t_pgflt(); // Page Fault
+void t_fperr(); // Floating Point Error
+void t_align(); // Alignment Check
+void t_mchk(); // Machine check
+void t_simderr(); // Virtualization Exception
 
 void
 trap_init(void)
@@ -77,6 +96,24 @@ trap_init(void)
      *
      */
 	// LAB 3: Your code here.
+    SETGATE(idt[T_DIVIDE], 0, GD_KT, t_divide, 0);
+    SETGATE(idt[T_DEBUG], 0, GD_KT, t_debug, 0);
+    SETGATE(idt[T_NMI], 0, GD_KT, t_nmi, 0);
+    SETGATE(idt[T_BRKPT], 0, GD_KT, t_brkpt, 0);
+    SETGATE(idt[T_OFLOW], 0, GD_KT, t_oflow, 0);
+    SETGATE(idt[T_BOUND], 0, GD_KT, t_bound, 0);
+    SETGATE(idt[T_ILLOP], 0, GD_KT, t_illop, 0);
+    SETGATE(idt[T_DEVICE], 0, GD_KT, t_device, 0);
+    SETGATE(idt[T_DBLFLT], 0, GD_KT, t_dblflt, 0);
+    SETGATE(idt[T_TSS], 0, GD_KT, t_tss, 0);
+    SETGATE(idt[T_SEGNP], 0, GD_KT, t_segnp, 0);
+    SETGATE(idt[T_STACK], 0, GD_KT, t_stack, 0);
+    SETGATE(idt[T_GPFLT], 0, GD_KT, t_gpflt, 0);
+    SETGATE(idt[T_PGFLT], 0, GD_KT, t_pgflt, 0);
+    SETGATE(idt[T_FPERR], 0, GD_KT, t_fperr, 0);
+    SETGATE(idt[T_ALIGN], 0, GD_KT, t_align, 0);
+    SETGATE(idt[T_MCHK], 0, GD_KT, t_mchk, 0);
+    SETGATE(idt[T_SIMDERR], 0, GD_KT, t_simderr, 0);
 
 	// Per-CPU setup
 	trap_init_percpu();
@@ -112,7 +149,7 @@ print_trapframe(struct Trapframe *tf)
 	print_regs(&tf->tf_regs);
 	cprintf("  es   0x----%04x\n", tf->tf_es);
 	cprintf("  ds   0x----%04x\n", tf->tf_ds);
-	cprintf("  trap 0x%08x %s\n", tf->tf_trapno, trapname(tf->tf_trapno));
+	cprintf("  trap 0x%08x %s\n", tf->tf_trapno, trapname(tf->tf_trapno)); 
 	// If this trap was a page fault that just happened
 	// (so %cr2 is meaningful), print the faulting linear address.
 	if (tf == last_tf && tf->tf_trapno == T_PGFLT)
