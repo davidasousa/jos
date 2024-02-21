@@ -393,8 +393,8 @@ env_create(uint8_t *binary, enum EnvType type)
     struct Env* e;
     if(env_alloc(&e, 0) != 0)
         panic("Error During Environment Allocation");
-    e -> env_type = type; 
     load_icode(e,binary);
+    e -> env_type = type; 
 }
 
 //
