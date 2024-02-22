@@ -95,7 +95,7 @@ boot_alloc(uint32_t n)
 	// to any kernel code or global variables.
 	if (!nextfree) {
 		extern char end[];
-		nextfree = ROUNDUP((char *) end + 1, PGSIZE);  //NEEDED TO ADD +1 SO THERE IS NO MEMORY FAULTS (SEE VIDEO IN LAB)
+		nextfree = ROUNDUP((char *) end + 1, PGSIZE); 
 	}
 
 	// Allocate a chunk large enough to hold 'n' bytes, then update
@@ -161,13 +161,7 @@ mem_init(void)
 
     // Allocating Space For The Page Info Table 
     pages = boot_alloc(npages * sizeof(struct PageInfo)); 
-    // Initializing Each Field In Each Page To Be 0
-    for(int idx = 0; idx < npages; idx++) {
-        memset(&pages[idx].pp_ref, 0, sizeof(int));
-        memset(&pages[idx].pp_link, 0, sizeof(int));
-        assert(pages[idx].pp_ref == 0 && pages[idx].pp_link == 0);
-    }
-    // End Lab 2 Exercise 1 Code
+    memset(pages, 0, npages * sizeof(struct PageInfo)); 
     
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
@@ -202,7 +196,8 @@ mem_init(void)
 
     // Mapping The Physical Pages To The UPAGES
 
-    boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U); 
+    boot_map_region(kern_pgdir, UPAGES, npages * sizeof(struct PageInfo), PADDR(pages), PTE_U | PTE_P); 
+    boot_map_region(kern_pgdir, (uintptr_t)pages, npages * sizeof(struct PageInfo), PADDR(pages), PTE_W | PTE_P); 
 
 	//////////////////////////////////////////////////////////////////////
 	// Map the 'envs' array read-only by the user at linear address UENVS
@@ -212,9 +207,8 @@ mem_init(void)
 	//    - envs itself -- kernel RW, user NONE
 	// LAB 3: Your code here.
 
-	// MAPPING MEMEORY FOR THE ENVIROMENT ARRAY WITH CORRECT SIZE AND PERMISIONS
-
-	boot_map_region(kern_pgdir, UENVS, PTSIZE, PADDR(envs), PTE_U);
+	boot_map_region(kern_pgdir, UENVS, NENV * sizeof(struct Env), PADDR(envs), PTE_U | PTE_P);
+	boot_map_region(kern_pgdir, (uintptr_t)envs, NENV * sizeof(struct Env), PADDR(envs), PTE_W | PTE_P);
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -228,7 +222,7 @@ mem_init(void)
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
     
-    boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W); 
+    boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W | PTE_P); 
     
     uint32_t size = (KSTACKTOP - KSTKSIZE) - (KSTACKTOP - PTSIZE); 
     
@@ -305,19 +299,20 @@ page_init(void)
     // Base Memory -> The Entire 4GB 
     pages[0].pp_ref = 1; // Setting References To 1 -> In Use
     pages[0].pp_link = NULL; // Null Due To Page Being In Use -> Link Is For Free Pages
-                             
-    uint32_t nextfree_idx = PADDR((void*) boot_alloc(0)) / PGSIZE; // Next Free Page Idx
-    for(size_t idx = (EXTPHYSMEM / PGSIZE); idx < nextfree_idx ; idx++) {
-        pages[idx].pp_ref = 1; // Setting References To 1 -> In Use
-        pages[idx].pp_link = NULL; // Null Due To Page Being In Use -> Link Is For Free Pages
+
+    uint32_t nextfree_idx = PADDR((void*) boot_alloc(0)) / PGSIZE; // Mapping Pages Between IOPHYSMEM and Boot Alloc 0 In Use
+
+    for(size_t idx = (IOPHYSMEM / PGSIZE); idx < nextfree_idx ; idx++) {
+        pages[idx].pp_ref = 1; 
+        pages[idx].pp_link = NULL; 
     } 
 
     page_free_list = NULL;
     for(size_t idx = 0; idx < npages; idx++) {
-        if(idx >= IOPHYSMEM / PGSIZE && idx < EXTPHYSMEM / PGSIZE) { continue; } // If The Page Is In The Io hole skip
-        if(pages[idx].pp_ref == 0) {
+        if(pages[idx].pp_ref != 1) {
+            pages[idx].pp_ref = 0;
             pages[idx].pp_link = page_free_list;
-            page_free_list = &pages[idx]; 
+            page_free_list = &pages[idx];  
         }
     }
 }
@@ -369,8 +364,7 @@ page_free(struct PageInfo *pp)
        panic("Page Free Error: Link Not Null");
 
     pp -> pp_link = page_free_list;
-    page_free_list = pp;
-    
+    page_free_list = pp; 
 }
 
 //
@@ -444,11 +438,10 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 {
     for(size_t idx = 0; idx < size / PGSIZE; idx++) {
         pte_t* pte = pgdir_walk(pgdir, (void*)va, 1); // Getting The PTE 
-        va += PGSIZE;
         *pte = pa + idx * PGSIZE; 
         *pte |= (perm | PTE_P);
+        va += PGSIZE;
     }
-
 }
 
 //
@@ -513,17 +506,13 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
     pte_t* pte = pgdir_walk(pgdir, va, 0);
-    if(pte == NULL) { return NULL; }
-                                     
-    if(pte_store != 0) { // If PTE Store Isnt Off Store
-        *pte_store = pte;
-    } 
+    if(pte == NULL) { return NULL; } // Has Not Been Mapped Yet                                 
+    if((*pte & PTE_P) == 0) { return NULL; } // Not Present
+    if(pte_store != 0) { *pte_store = pte; }  // Store The Pte In Pte Store
 
-    if((*pte & PTE_P) == 0) { return NULL; } // No Page Mapped
-    
     return pa2page(PTE_ADDR(*pte));
 }
-
+// pmap env trap trapentry
 //
 // Unmaps the physical page at virtual address 'va'.
 // If there is no physical page at that address, silently does nothing. <--

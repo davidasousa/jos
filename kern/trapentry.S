@@ -81,8 +81,8 @@ _alltraps:
     pushl %ds
     pushl %es
     pushal
+    movw $GD_KD, %bx
+    movw %bx, %ds
+    movw %bx, %es
     pushl %esp
-    movw $GD_KD, %ax
-    movw %ax, %ds
-    movw %ax, %es
     call trap

@@ -194,7 +194,9 @@ env_setup_vm(struct Env *e)
 	// LAB 3: Your code here.
     p -> pp_ref++; 
     e -> env_pgdir = (pde_t*) page2kva(p); // Setting env pgdir
-    memcpy(e -> env_pgdir, kern_pgdir, PGSIZE); // Copying The Kernel PGDIR Into The Current Env
+    for(size_t idx = PDX(UTOP); idx < NPDENTRIES; idx++) {
+        e -> env_pgdir[idx] = kern_pgdir[idx];
+    }
 
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
@@ -284,8 +286,8 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   (Watch out for corner-cases!)
     
     // Rounding Va And Len To Fit The Proper Size
-	len = (uint32_t) ROUNDUP(va + len, PGSIZE);
     va = ROUNDDOWN(va, PGSIZE); 
+	len = (uint32_t) ROUNDUP(va + len, PGSIZE);
 
     struct PageInfo* page;
 
@@ -351,12 +353,12 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
-
-    lcr3(PADDR(e -> env_pgdir)); // Loading The Env Pgdir
-                                 
+                             
     struct Elf* elf = (struct Elf*) binary; // Casting Binary To An Elf
     if(elf -> e_magic != ELF_MAGIC) 
         panic("Error e_magic not set");
+
+    lcr3(PADDR(e -> env_pgdir)); // Loading The Env Pgdir
 
     struct Proghdr* ph = (struct Proghdr*) (binary + elf -> e_phoff); // First PH
     
@@ -364,7 +366,6 @@ load_icode(struct Env *e, uint8_t *binary)
         if(curr_ph -> p_type == ELF_PROG_LOAD) {
             region_alloc(e, (void*)ph->p_va, ph -> p_memsz);
             memcpy((void*)ph->p_va, binary + ph->p_offset, ph->p_filesz);
-            memset((void*)ph->p_va + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz); 
         }
     }
     
@@ -376,7 +377,6 @@ load_icode(struct Env *e, uint8_t *binary)
 
 	// LAB 3: Your code here.
     lcr3(PADDR(kern_pgdir)); // Loading The Kern Pgdir
-
 }
 
 //
@@ -468,6 +468,7 @@ env_destroy(struct Env *e)
 // Restores the register values in the Trapframe with the 'iret' instruction.
 // This exits the kernel and starts executing some environment's code.
 //
+//
 // This function does not return.
 //
 void
@@ -511,6 +512,9 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
+    pte_t* t = pgdir_walk(kern_pgdir, (void*)0x800020, 0);
+    cprintf("\n%lx\n", t);
+
 	if(curenv != NULL && curenv->env_status == ENV_RUNNING) { 
 		curenv->env_status = ENV_RUNNABLE;
 	}
