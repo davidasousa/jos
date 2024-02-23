@@ -364,8 +364,8 @@ load_icode(struct Env *e, uint8_t *binary)
     
     for(struct Proghdr* curr_ph = ph; curr_ph < ph + elf -> e_phnum; curr_ph++) {
         if(curr_ph -> p_type == ELF_PROG_LOAD) {
-            region_alloc(e, (void*)ph->p_va, ph -> p_memsz);
-            memcpy((void*)ph->p_va, binary + ph->p_offset, ph->p_filesz);
+            region_alloc(e, (void*)curr_ph->p_va, curr_ph -> p_memsz);
+            memcpy((void*)curr_ph->p_va, binary + curr_ph->p_offset, curr_ph->p_filesz);
         }
     }
     
