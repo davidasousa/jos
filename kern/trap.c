@@ -97,6 +97,7 @@ trap_init(void)
     void t_align(); // Alignment Check
     void t_mchk(); // Machine check
     void t_simderr(); // Virtualization Exception
+    void t_syscall(); // System Calls
                       
     SETGATE(idt[T_DIVIDE], 0, GD_KT, t_divide, 0);
     SETGATE(idt[T_DEBUG], 0, GD_KT, t_debug, 0);
@@ -116,6 +117,7 @@ trap_init(void)
     SETGATE(idt[T_ALIGN], 0, GD_KT, t_align, 0);
     SETGATE(idt[T_MCHK], 0, GD_KT, t_mchk, 0);
     SETGATE(idt[T_SIMDERR], 0, GD_KT, t_simderr, 0);
+    SETGATE(idt[T_SYSCALL], 0, GD_KT, t_syscall, 3);
 
 	// Per-CPU setup
 	trap_init_percpu();
@@ -195,6 +197,31 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+    switch(tf -> tf_trapno) {
+        case T_PGFLT:
+        {
+            page_fault_handler(tf); // Calling Page Fault Function
+            return;
+        } 
+        case T_BRKPT:
+        {
+            monitor(tf);
+            return;
+        }
+        case T_SYSCALL:
+        {
+            int32_t ret = syscall(tf->tf_regs.reg_eax,
+                    tf->tf_regs.reg_edx,
+                    tf->tf_regs.reg_ecx,
+                    tf->tf_regs.reg_ebx,
+                    tf->tf_regs.reg_edi,
+                    tf->tf_regs.reg_esi
+                );
+            tf -> tf_regs.reg_eax = ret;
+            return;
+        }
+
+    }
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
