@@ -194,7 +194,7 @@ env_setup_vm(struct Env *e)
 	// LAB 3: Your code here.
     p -> pp_ref++; 
     e -> env_pgdir = (pde_t*) page2kva(p); // Setting env pgdir
-    for(size_t idx = PDX(UTOP); idx < NPDENTRIES; idx++) {
+    for(size_t idx = PDX(UTOP); idx < NPDENTRIES; idx++) { // TA helped fix - Pranab Dash
         e -> env_pgdir[idx] = kern_pgdir[idx];
     }
 
@@ -364,6 +364,7 @@ load_icode(struct Env *e, uint8_t *binary)
     
     for(struct Proghdr* curr_ph = ph; curr_ph < ph + elf -> e_phnum; curr_ph++) {
         if(curr_ph -> p_type == ELF_PROG_LOAD) {
+            // Allocating The Virtual Region To The Pages
             region_alloc(e, (void*)curr_ph->p_va, curr_ph -> p_memsz);
             memcpy((void*)curr_ph->p_va, binary + curr_ph->p_offset, curr_ph->p_filesz);
         }
@@ -513,8 +514,6 @@ env_run(struct Env *e)
 
 	// LAB 3: Your code here.
     pte_t* t = pgdir_walk(kern_pgdir, (void*)0x800020, 0);
-    cprintf("\n%lx\n", t);
-
 	if(curenv != NULL && curenv->env_status == ENV_RUNNING) { 
 		curenv->env_status = ENV_RUNNABLE;
 	}
