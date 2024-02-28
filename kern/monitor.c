@@ -146,25 +146,18 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
         // Exercise 12
         debuginfo_eip(*eip, &info);
 		
-
 		//Name buffer for eip_fn_name so we can terminate
 		char buffer[100] = {'\0'};
 		memcpy(buffer,info.eip_fn_name, info.eip_fn_namelen);
 
-		//print info to terminal
         cprintf("       ");
         cprintf("%s:", info.eip_file);
 		cprintf("%d: ", info.eip_line);
 		cprintf("%s", buffer);
 		cprintf("+%d", ((*eip) - info.eip_fn_addr));
 		cprintf("\n");
-        //
 
-
-        // Dereference The EBP Address To Extract The Value
-        // Cast To Pointer To Find The Address (Prev EBP)
         ebp = (uint32_t*)(*ebp);
-
         eip = (uint32_t*)(*ebp + 4);
 
         p1 = (uint32_t*)(*ebp + 8);
@@ -173,8 +166,6 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
         p4 = (uint32_t*)(*ebp + 20);
         p5 = (uint32_t*)(*ebp + 24);
     }
-    
-    //
 	return 0;
 }
 
