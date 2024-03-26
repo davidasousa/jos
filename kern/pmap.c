@@ -186,8 +186,7 @@ mem_init(void)
 	check_page();
 
 	//////////////////////////////////////////////////////////////////////
-	// Now we set up virtual memory
-
+	// Now we set up virtual memor
 	//////////////////////////////////////////////////////////////////////
 	// Map 'pages' read-only by the user at linear address UPAGES
 	// Permissions:
@@ -291,6 +290,11 @@ mem_init_mp(void)
 	//
 	// LAB 4: Your code here:
 
+    for(int idx = 0; idx < NCPU; idx++) {
+        uint32_t kstacktop_idx = KSTACKTOP - idx * (KSTKSIZE + KSTKGAP);
+        boot_map_region(kern_pgdir, kstacktop_idx - KSTKSIZE, KSTKSIZE, PADDR(percpu_kstacks[idx]), PTE_W);
+    }
+
 }
 
 // --------------------------------------------------------------
@@ -343,9 +347,13 @@ page_init(void)
     page_free_list = NULL;
     for(size_t idx = 0; idx < npages; idx++) {
         if(pages[idx].pp_ref != 1) {
-            pages[idx].pp_ref = 0;
-            pages[idx].pp_link = page_free_list;
-            page_free_list = &pages[idx];  
+            if(idx == MPENTRY_PADDR / PGSIZE) {
+                pages[idx].pp_ref = 1;
+            } else {
+                pages[idx].pp_ref = 0;
+                pages[idx].pp_link = page_free_list;
+                page_free_list = &pages[idx];  
+            }
         }
     }
 }
@@ -618,7 +626,16 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+    size = ROUNDUP(size, PGSIZE);
+
+    if(MMIOLIM >= base + size) {
+        panic("MMIOLIM Limit Exceeded");
+    }
+    boot_map_region(kern_pgdir, base, size, pa, PTE_PCD | PTE_PWT | PTE_W);
+
+    uintptr_t prev_base = base;
+    base += size;
+    return (void*)prev_base;
 }
 
 static uintptr_t user_mem_check_addr;
