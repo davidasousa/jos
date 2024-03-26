@@ -546,6 +546,7 @@ env_run(struct Env *e)
     curenv = e; // Setting Current Environment
     e -> env_status = ENV_RUNNING; // Status -> Running
     e -> env_runs++;
+    unlock_kernel();
     lcr3(PADDR(e -> env_pgdir)); // Changing Dir In CR3
     env_pop_tf(&e -> env_tf);
 }
