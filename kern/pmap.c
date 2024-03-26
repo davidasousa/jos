@@ -628,7 +628,7 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Your code here:
     size = ROUNDUP(size, PGSIZE);
 
-    if(MMIOLIM >= base + size) {
+    if(MMIOLIM <= base + size) {
         panic("MMIOLIM Limit Exceeded");
     }
     boot_map_region(kern_pgdir, base, size, pa, PTE_PCD | PTE_PWT | PTE_W);
