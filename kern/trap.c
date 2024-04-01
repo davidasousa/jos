@@ -131,6 +131,7 @@ trap_init(void)
     SETGATE(idt[T_MCHK], 0, GD_KT, t_mchk, 0);
     SETGATE(idt[T_SIMDERR], 0, GD_KT, t_simderr, 0);
     SETGATE(idt[T_SYSCALL], 0, GD_KT, t_syscall, 3);
+
     SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], 0, GD_KT, &th_irq_timer, 0);
     SETGATE(idt[IRQ_OFFSET + IRQ_KBD], 0, GD_KT, &th_irq_kbd, 0);
     SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL], 0, GD_KT, &th_irq_serial, 0);

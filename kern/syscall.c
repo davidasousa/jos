@@ -367,10 +367,10 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
     } else {
         e->env_ipc_perm = 0;
     }
+    e->env_status = ENV_RUNNABLE;
     e->env_ipc_recving = 0;
     e->env_ipc_from = curenv->env_id;
     e->env_ipc_value = value;
-    e->env_status = ENV_RUNNABLE;
     return 0;
 }
 
@@ -389,12 +389,12 @@ static int
 sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
-    if ((uint32_t)dstva < UTOP && PGOFF(dstva) != 0) {
+    if (PGOFF(dstva) != 0 && (uint32_t)dstva) {
         return -E_INVAL;
     }
+    curenv->env_status = ENV_NOT_RUNNABLE;
     curenv->env_ipc_recving = 1;
     curenv->env_ipc_dstva = dstva;
-    curenv->env_status = ENV_NOT_RUNNABLE;
 	return 0;
 }
 
