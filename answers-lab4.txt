@@ -1,0 +1,9 @@
+Answers To Lab 4 Questions - David Sousa & Yusuf Jarada
+
+1. MPBOOTPHYS finds the physical address at MPENTRY_PADDR since APs begin in real mode and need a form of translation to access code that would otherwise require protected mode to be enabled first. Without it the addresses being accessed would not be reachable. Boot.s is configured to run to an already accessable location in real mode.
+
+2. Information is pushed onto the stack independant for each individual cpu. If it were the case that all cpus shared a single stack to store information information could be pushed/popped in an invalid order due to kernel mode transitions for one of the cpus. This instance would ruin the information stored on the stack and subsequentially the nature of the running process.
+
+3. The virtual address of e is always constanst meaning any dereference would result in the original memory location at any point.
+
+4. Old environment registers are pushed onto the stack at first to then be saved into env_tf for use later with the call of env_run.
