@@ -271,6 +271,13 @@ trap_dispatch(struct Trapframe *tf)
             tf -> tf_regs.reg_eax = ret;
             return;
         }
+		
+		case IRQ_OFFSET + IRQ_KBD:
+			kbd_intr();
+			return;
+		case IRQ_OFFSET + IRQ_SERIAL:
+			serial_intr();
+			return;
 
     }
 

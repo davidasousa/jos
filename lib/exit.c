@@ -4,7 +4,7 @@
 void
 exit(void)
 {
-	close_all();
+	close_all();  //CHANGE THIS LATER
 	sys_env_destroy(0);
 }
 

@@ -70,7 +70,11 @@ duppage(envid_t envid, unsigned pn)
     void *va = (void *)(pn * PGSIZE);
     int r;
 
-    if ((uvpt[pn] & PTE_W) == PTE_W || (uvpt[pn] & PTE_COW) == PTE_COW) {
+    if ((uvpt[pn] & PTE_SHARE) == PTE_SHARE) {
+                if ((r = sys_page_map(parent_envid, va, envid, va, uvpt[pn] & PTE_SYSCALL)) != 0) {
+                        panic("duppage: %e", r);
+                }
+        } else if ((uvpt[pn] & PTE_W) == PTE_W || (uvpt[pn] & PTE_COW) == PTE_COW) {
         if ((r = sys_page_map(parent_envid, va, envid, va, PTE_COW | PTE_U | PTE_P)) != 0) {
             panic("duppage: %e", r);
         }
@@ -85,6 +89,7 @@ duppage(envid_t envid, unsigned pn)
 
 	return 0;
 }
+
 
 //
 // User-level fork with copy-on-write.
@@ -138,6 +143,7 @@ fork(void)
 
     return envid;
 }
+
 
 // Challenge!
 int

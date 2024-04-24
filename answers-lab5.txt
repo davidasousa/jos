@@ -1,0 +1,8 @@
+ECE 469 Lab 2: Memory Management
+David Sousa & Yusuf Jarada
+
+Answers To Questions:
+
+1) No. The I/O setting will be saved and restored when switching between environments beucase the I/O privilege is stored in the eflags register.
+
+2)

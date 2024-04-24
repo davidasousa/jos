@@ -204,18 +204,34 @@ serve_set_size(envid_t envid, struct Fsreq_set_size *req)
 // in ipc->read.req_fileid.  Return the bytes read from the file to
 // the caller in ipc->readRet, then update the seek position.  Returns
 // the number of bytes successfully read, or < 0 on error.
-int
-serve_read(envid_t envid, union Fsipc *ipc)
+
+int serve_read(envid_t envid, union Fsipc *ipc)
 {
-	struct Fsreq_read *req = &ipc->read;
-	struct Fsret_read *ret = &ipc->readRet;
+    struct Fsreq_read *req = &ipc->read;
+    struct Fsret_read *ret = &ipc->readRet;
+    
 
-	if (debug)
-		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
-	// Lab 5: Your code here:
-	return 0;
+    if (debug){
+        cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 }
+
+	struct OpenFile *o;
+    int read = 0;
+
+    if ((read = openfile_lookup(envid, req->req_fileid, &o)) != 0) {
+        return read;
+    }
+
+    if ((read = file_read(o->o_file, ret->ret_buf, req->req_n, o->o_fd->fd_offset)) > 0) {
+        o->o_fd->fd_offset += read;
+    } else if (read < 0) {
+        return read;
+    }
+
+    return read;
+}
+
 
 
 // Write req->req_n bytes from req->req_buf to req_fileid, starting at
@@ -225,11 +241,19 @@ serve_read(envid_t envid, union Fsipc *ipc)
 int
 serve_write(envid_t envid, struct Fsreq_write *req)
 {
-	if (debug)
-		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
+	struct OpenFile *o;
+    int r;
 
-	// LAB 5: Your code here.
-	panic("serve_write not implemented");
+    if (debug)
+        cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
+
+    if ((r = openfile_lookup(envid, req->req_fileid, &o)) != 0) {
+        return r;
+    }
+    if ((r = file_write(o->o_file, req->req_buf, req->req_n, o->o_fd->fd_offset)) > 0) {
+        o->o_fd->fd_offset += r;
+    }
+    return r;
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the
